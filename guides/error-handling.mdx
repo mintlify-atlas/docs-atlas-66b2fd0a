@@ -1,0 +1,436 @@
+---
+title: 'Error Handling'
+description: 'Handle API errors, timeouts, and exceptions in VirtualizorJS'
+---
+
+## Overview
+
+The VirtualizorJS SDK provides structured error handling through the `VirtualizorApiError` class and standard JavaScript error patterns. This guide covers error types, handling strategies, and best practices.
+
+## VirtualizorApiError
+
+All API errors from the Virtualizor server are thrown as `VirtualizorApiError` instances. This error class is defined in `src/http.ts:8`:
+
+```typescript
+export class VirtualizorApiError extends Error {
+  readonly code: number;
+
+  constructor(message: string, code: number) {
+    super(message);
+    this.name = 'VirtualizorApiError';
+    this.code = code;
+  }
+}
+```
+
+### Error Properties
+
+<ParamField path="message" type="string">
+  The error message from the Virtualizor API. This is a human-readable description of what went wrong.
+</ParamField>
+
+<ParamField path="code" type="number">
+  The numeric error code returned by Virtualizor. Use this for programmatic error handling.
+</ParamField>
+
+<ParamField path="name" type="string">
+  Always set to `"VirtualizorApiError"` for easy identification.
+</ParamField>
+
+## Basic Error Handling
+
+Always wrap SDK calls in try-catch blocks:
+
+```typescript
+import { createVirtualizorClient, VirtualizorApiError } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+try {
+  const vps = await client.vps.get('123');
+  console.log('VPS:', vps.hostname);
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    console.error(`API Error [${error.code}]: ${error.message}`);
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
+```
+
+## Error Type Detection
+
+Differentiate between API errors and other exceptions:
+
+```typescript
+try {
+  await client.vps.start('invalid-id');
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    // Handle Virtualizor API errors
+    console.error(`Virtualizor API Error [${error.code}]: ${error.message}`);
+  } else if (error instanceof Error) {
+    // Handle other errors (network, timeout, etc.)
+    console.error('System error:', error.message);
+  } else {
+    // Handle unknown error types
+    console.error('Unknown error:', error);
+  }
+}
+```
+
+## Common Error Scenarios
+
+### Authentication Errors
+
+Invalid API credentials result in HTTP 302 redirects. The SDK detects this in `src/http.ts:74` and throws a descriptive error:
+
+```typescript
+try {
+  const client = createVirtualizorClient({
+    host: 'virtualizor.example.com',
+    apiKey: 'wrong-key',
+    apiPass: 'wrong-pass',
+  });
+  
+  await client.vps.list();
+} catch (error) {
+  if (error instanceof Error && error.message.includes('Authentication failed')) {
+    console.error('Invalid API credentials. Check your API key and password.');
+    console.error('Generate credentials in: Configuration > API Credentials');
+  }
+}
+```
+
+<Warning>
+  Authentication failures return HTTP 302 redirects, not standard error responses. The SDK automatically detects and handles this.
+</Warning>
+
+### Resource Not Found
+
+Attempting to access a non-existent resource:
+
+```typescript
+try {
+  const vps = await client.vps.get('999999');
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    // Virtualizor returns specific error codes for missing resources
+    if (error.code === 123) { // Example error code
+      console.error('VPS not found');
+    } else {
+      console.error(`API Error [${error.code}]: ${error.message}`);
+    }
+  }
+}
+```
+
+### Timeout Errors
+
+Requests that exceed the configured timeout (default 30 seconds) are aborted. The timeout mechanism is implemented in `src/http.ts:98`:
+
+```typescript
+try {
+  const client = createVirtualizorClient({
+    host: 'virtualizor.example.com',
+    apiKey: 'your-api-key',
+    apiPass: 'your-api-pass',
+    timeout: 5000, // 5 seconds
+  });
+  
+  await client.vps.create({ /* ... */ });
+} catch (error) {
+  if (error instanceof Error && error.message.includes('timed out')) {
+    console.error('Request timed out. Consider increasing the timeout value.');
+  }
+}
+```
+
+<Tip>
+  For long-running operations like VPS creation, increase the timeout or use task polling instead of waiting for the immediate response.
+</Tip>
+
+### JSON Parsing Errors
+
+If the API returns invalid JSON, the SDK throws a parsing error (see `src/http.ts:84`):
+
+```typescript
+try {
+  await client.vps.list();
+} catch (error) {
+  if (error instanceof Error && error.message.includes('Failed to parse response')) {
+    console.error('Received invalid response from server.');
+    console.error('Enable debug mode to see raw response.');
+  }
+}
+```
+
+Enable debug mode to inspect raw responses:
+
+```typescript
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+  debug: true, // Logs first 500 chars of raw response on parse errors
+});
+```
+
+## Error Code Handling
+
+Use error codes for programmatic error handling:
+
+```typescript
+type ErrorHandler = (error: VirtualizorApiError) => void;
+
+const errorHandlers: Record<number, ErrorHandler> = {
+  101: (error) => console.error('Invalid parameters:', error.message),
+  102: (error) => console.error('Insufficient permissions:', error.message),
+  103: (error) => console.error('Resource limit exceeded:', error.message),
+};
+
+try {
+  await client.vps.create({ /* ... */ });
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    const handler = errorHandlers[error.code];
+    if (handler) {
+      handler(error);
+    } else {
+      console.error(`Unhandled API error [${error.code}]: ${error.message}`);
+    }
+  }
+}
+```
+
+## Task Polling Errors
+
+Async operations that use task polling can fail in multiple ways:
+
+```typescript
+import { VirtualizorApiError } from 'virtualizorjs';
+
+try {
+  const result = await client.vps.start('123');
+  
+  if (!result.taskid) {
+    throw new Error('No task ID returned from API');
+  }
+  
+  const task = await client.tasks.wait(result.taskid);
+  console.log('VPS started successfully');
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    // API-level error (e.g., VPS not found, invalid state)
+    console.error(`API Error [${error.code}]: ${error.message}`);
+  } else if (error instanceof Error) {
+    if (error.message.includes('timed out')) {
+      // Task polling timeout (see src/resources/tasks.ts:38)
+      console.error('Operation timed out waiting for completion');
+    } else if (error.message.includes('failed')) {
+      // Task failed (see src/resources/tasks.ts:32)
+      console.error('Operation failed on the server');
+    } else if (error.message.includes('not found')) {
+      // Task not found (see src/resources/tasks.ts:30)
+      console.error('Task disappeared from the server');
+    } else {
+      console.error('Unexpected error:', error.message);
+    }
+  }
+}
+```
+
+See the [Task Polling guide](/guides/task-polling) for more details on handling async operation errors.
+
+## Retry Strategies
+
+Implement retry logic for transient failures:
+
+```typescript
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000,
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (error instanceof VirtualizorApiError) {
+        // Don't retry client errors (4xx-equivalent)
+        if (error.code >= 100 && error.code < 200) {
+          throw error;
+        }
+      }
+      
+      if (attempt < maxRetries) {
+        console.log(`Attempt ${attempt} failed, retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Usage
+try {
+  const vpsList = await withRetry(() => client.vps.list());
+  console.log('VPS list retrieved:', Object.keys(vpsList).length);
+} catch (error) {
+  console.error('Failed after retries:', error);
+}
+```
+
+## Error Logging
+
+Structured error logging for production environments:
+
+```typescript
+interface ErrorLog {
+  timestamp: string;
+  operation: string;
+  errorType: string;
+  code?: number;
+  message: string;
+  stack?: string;
+}
+
+function logError(operation: string, error: unknown): ErrorLog {
+  const errorLog: ErrorLog = {
+    timestamp: new Date().toISOString(),
+    operation,
+    errorType: 'unknown',
+    message: String(error),
+  };
+  
+  if (error instanceof VirtualizorApiError) {
+    errorLog.errorType = 'VirtualizorApiError';
+    errorLog.code = error.code;
+    errorLog.message = error.message;
+  } else if (error instanceof Error) {
+    errorLog.errorType = error.name;
+    errorLog.message = error.message;
+    errorLog.stack = error.stack;
+  }
+  
+  console.error(JSON.stringify(errorLog));
+  return errorLog;
+}
+
+// Usage
+try {
+  await client.vps.delete('123');
+} catch (error) {
+  logError('vps.delete', error);
+  throw error; // Re-throw after logging
+}
+```
+
+## Error Response Structure
+
+The SDK parses error responses from the Virtualizor API (see `src/http.ts:21`). The raw error structure from the API is:
+
+```typescript
+interface VirtualizorError {
+  code: number;
+  msg: string;
+}
+
+interface VirtualizorResponse {
+  error?: VirtualizorError[];
+  // ... other fields
+}
+```
+
+The SDK extracts the first error and throws it as `VirtualizorApiError`:
+
+```typescript
+if (data.error && data.error.length > 0) {
+  const first = data.error[0];
+  if (first) {
+    throw new VirtualizorApiError(first.msg, first.code);
+  }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always use try-catch blocks">
+    Never call SDK methods without error handling. All network operations can fail.
+    
+    ```typescript
+    // Bad
+    const vps = await client.vps.get('123');
+    
+    // Good
+    try {
+      const vps = await client.vps.get('123');
+    } catch (error) {
+      // Handle error
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Check error types before accessing properties">
+    Use `instanceof` to safely access error properties.
+    
+    ```typescript
+    // Bad
+    catch (error) {
+      console.error(error.code); // Type error if not VirtualizorApiError
+    }
+    
+    // Good
+    catch (error) {
+      if (error instanceof VirtualizorApiError) {
+        console.error(error.code);
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Enable debug mode during development">
+    Debug mode helps diagnose connection and parsing issues.
+    
+    ```typescript
+    const client = createVirtualizorClient({
+      // ... other config
+      debug: process.env.NODE_ENV === 'development',
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Log errors before re-throwing">
+    Preserve error context while allowing upstream handling.
+    
+    ```typescript
+    try {
+      await client.vps.create(params);
+    } catch (error) {
+      logger.error('VPS creation failed', error);
+      throw error; // Re-throw for caller to handle
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about timeout and debug configuration
+  </Card>
+  <Card title="Task Polling" icon="clock" href="/guides/task-polling">
+    Handle errors in async operations
+  </Card>
+</CardGroup>

@@ -1,0 +1,310 @@
+---
+title: 'Users'
+description: 'Manage Virtualizor users'
+---
+
+The `users` resource provides methods for managing Virtualizor users who can own and manage VPS instances.
+
+## Overview
+
+Access the Users resource through the client:
+
+```typescript
+const users = client.users;
+```
+
+## Methods
+
+### list()
+
+Retrieve all users in the Virtualizor installation.
+
+```typescript
+list(): Promise<Record<string, User>>
+```
+
+<ResponseField name="result" type="Record<string, User>">
+  A dictionary of users keyed by user ID
+  
+  <Expandable title="User properties">
+    <ResponseField name="uid" type="string" required>
+      User ID
+    </ResponseField>
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+    <ResponseField name="status" type="string" required>
+      User status (e.g., "active", "suspended")
+    </ResponseField>
+    <ResponseField name="type" type="string" required>
+      User type (e.g., "admin", "user")
+    </ResponseField>
+    <ResponseField name="fname" type="string" optional>
+      First name
+    </ResponseField>
+    <ResponseField name="lname" type="string" optional>
+      Last name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const users = await client.users.list();
+
+for (const [uid, user] of Object.entries(users)) {
+  console.log(`${user.email} (${user.fname} ${user.lname})`);
+  console.log(`  Status: ${user.status}`);
+  console.log(`  Type: ${user.type}`);
+}
+```
+
+---
+
+### create()
+
+Create a new user account.
+
+```typescript
+create(params: CreateUserParams): Promise<AsyncTaskResult>
+```
+
+<ParamField path="params" type="CreateUserParams" required>
+  User creation parameters
+  
+  <Expandable title="properties">
+    <ParamField path="email" type="string" required>
+      User's email address (also used as username)
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      User's password
+    </ParamField>
+    <ParamField path="fname" type="string" optional>
+      First name
+    </ParamField>
+    <ParamField path="lname" type="string" optional>
+      Last name
+    </ParamField>
+    <ParamField path="acttype" type="number" optional>
+      Account type
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  <Expandable title="properties">
+    <ResponseField name="taskid" type="string" optional>
+      Task ID for monitoring the creation progress
+    </ResponseField>
+    <ResponseField name="done" type="1" optional>
+      Set to 1 if operation completed immediately
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.users.create({
+  email: 'john.doe@example.com',
+  password: 'SecureP@ssw0rd!',
+  fname: 'John',
+  lname: 'Doe',
+});
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('User created successfully');
+}
+```
+
+---
+
+### delete()
+
+Permanently delete a user account.
+
+```typescript
+delete(uid: string): Promise<AsyncTaskResult>
+```
+
+<ParamField path="uid" type="string" required>
+  The user ID to delete
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  Task result (see create() for property documentation)
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.users.delete('123');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('User deleted successfully');
+}
+```
+
+<Warning>
+  Deleting a user may also delete all VPS instances owned by that user, depending on your Virtualizor configuration.
+</Warning>
+
+---
+
+### suspend()
+
+Suspend a user account, preventing access and stopping all their VPS instances.
+
+```typescript
+suspend(uid: string): Promise<AsyncTaskResult>
+```
+
+<ParamField path="uid" type="string" required>
+  The user ID to suspend
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  Task result (see create() for property documentation)
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.users.suspend('123');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('User suspended successfully');
+}
+```
+
+---
+
+### unsuspend()
+
+Remove suspension from a user account, restoring access.
+
+```typescript
+unsuspend(uid: string): Promise<AsyncTaskResult>
+```
+
+<ParamField path="uid" type="string" required>
+  The user ID to unsuspend
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  Task result (see create() for property documentation)
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.users.unsuspend('123');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('User unsuspended successfully');
+}
+```
+
+---
+
+## Common Workflows
+
+### Create User and Assign VPS
+
+```typescript
+// Create the user
+const createResult = await client.users.create({
+  email: 'customer@example.com',
+  password: 'SecureP@ssw0rd!',
+  fname: 'Jane',
+  lname: 'Smith',
+});
+
+if (createResult.taskid) {
+  await client.tasks.wait(createResult.taskid);
+}
+
+// Get the new user's ID
+const users = await client.users.list();
+const newUser = Object.values(users).find(
+  u => u.email === 'customer@example.com'
+);
+
+if (newUser) {
+  // Create a VPS for this user
+  const vpsResult = await client.vps.create({
+    hostname: 'customer-vps.example.com',
+    rootpass: 'VPSPassword!',
+    osid: 123,
+    plid: 5,
+    user_email: newUser.email,
+  });
+
+  if (vpsResult.taskid) {
+    await client.tasks.wait(vpsResult.taskid);
+    console.log('User and VPS created successfully');
+  }
+}
+```
+
+### Suspend User and All Their VPS
+
+```typescript
+const uid = '123';
+
+// Suspending the user will also suspend their VPS instances
+const result = await client.users.suspend(uid);
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('User and all VPS suspended');
+}
+```
+
+---
+
+## Type Definitions
+
+### User
+
+```typescript
+interface User {
+  uid: string;
+  email: string;
+  fname?: string;
+  lname?: string;
+  status: string;
+  type: string;
+}
+```
+
+### CreateUserParams
+
+```typescript
+interface CreateUserParams {
+  email: string;
+  password: string;
+  fname?: string;
+  lname?: string;
+  acttype?: number;
+  [key: string]: unknown;
+}
+```
+
+### AsyncTaskResult
+
+Returned by all asynchronous operations:
+
+```typescript
+interface AsyncTaskResult {
+  taskid?: string;  // Task ID for monitoring progress
+  done?: 1;         // Set to 1 if operation completed immediately
+}
+```
+
+See the [Tasks API](/api/tasks) for monitoring asynchronous operations.

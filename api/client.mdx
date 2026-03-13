@@ -1,0 +1,308 @@
+---
+title: 'Client'
+description: 'VirtualizorClient class and factory function'
+---
+
+## Overview
+
+The VirtualizorClient is the main entry point for interacting with the Virtualizor API. It provides namespaced resource access for managing VPS instances, users, plans, and tasks.
+
+## createVirtualizorClient
+
+Factory function to create a new VirtualizorClient instance.
+
+```typescript
+function createVirtualizorClient(config: VirtualizorConfig): VirtualizorClient
+```
+
+<ParamField path="config" type="VirtualizorConfig" required>
+  Configuration object for the Virtualizor API client
+
+  <ParamField path="config.host" type="string" required>
+    The hostname or IP address of your Virtualizor server (without protocol)
+  </ParamField>
+
+  <ParamField path="config.apiKey" type="string" required>
+    Your Virtualizor API key
+  </ParamField>
+
+  <ParamField path="config.apiPass" type="string">
+    Your Virtualizor API password (optional, defaults to empty string)
+  </ParamField>
+
+  <ParamField path="config.port" type="number" default={4085}>
+    The port number for the Virtualizor API
+  </ParamField>
+
+  <ParamField path="config.https" type="boolean" default={true}>
+    Whether to use HTTPS for API requests
+  </ParamField>
+
+  <ParamField path="config.rejectUnauthorized" type="boolean" default={false}>
+    Whether to reject unauthorized SSL certificates
+  </ParamField>
+
+  <ParamField path="config.timeout" type="number" default={30000}>
+    Request timeout in milliseconds
+  </ParamField>
+
+  <ParamField path="config.debug" type="boolean" default={false}>
+    Enable debug logging for API requests
+  </ParamField>
+</ParamField>
+
+### Example
+
+<CodeGroup>
+
+```typescript Basic Usage
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+```
+
+```typescript Custom Configuration
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: '192.168.1.100',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password',
+  port: 4085,
+  https: true,
+  timeout: 60000,
+  debug: true
+});
+```
+
+```typescript Environment Variables
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: process.env.VIRTUALIZOR_HOST!,
+  apiKey: process.env.VIRTUALIZOR_API_KEY!,
+  apiPass: process.env.VIRTUALIZOR_API_PASS
+});
+```
+
+</CodeGroup>
+
+## VirtualizorClient
+
+The main client class for interacting with the Virtualizor API.
+
+### Constructor
+
+```typescript
+new VirtualizorClient(config: VirtualizorConfig)
+```
+
+<Note>
+  It's recommended to use `createVirtualizorClient()` instead of instantiating the class directly, as both approaches are functionally equivalent.
+</Note>
+
+### Properties
+
+The client provides access to resource namespaces for different API operations:
+
+<ResponseField name="vps" type="VpsResource">
+  Resource for managing Virtual Private Servers (VPS instances)
+  
+  Provides methods for creating, listing, starting, stopping, and managing VPS instances.
+</ResponseField>
+
+<ResponseField name="users" type="UsersResource">
+  Resource for managing Virtualizor users
+  
+  Provides methods for creating, listing, and managing user accounts.
+</ResponseField>
+
+<ResponseField name="plans" type="PlansResource">
+  Resource for managing VPS plans
+  
+  Provides methods for creating, listing, and managing VPS plans and templates.
+</ResponseField>
+
+<ResponseField name="tasks" type="TasksResource">
+  Resource for managing and polling asynchronous tasks
+  
+  Provides methods for checking task status and waiting for task completion.
+</ResponseField>
+
+### Example Usage
+
+<CodeGroup>
+
+```typescript VPS Operations
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+
+// List all VPS instances
+const vpsList = await client.vps.list();
+
+// Get a specific VPS
+const vps = await client.vps.get('12345');
+
+// Start a VPS
+const startTask = await client.vps.start('12345');
+```
+
+```typescript User Management
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+
+// List all users
+const users = await client.users.list();
+
+// Create a new user
+const newUser = await client.users.create({
+  email: 'user@example.com',
+  password: 'securepassword'
+});
+```
+
+```typescript Plan Management
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+
+// List all plans
+const plans = await client.plans.list();
+
+// Get a specific plan
+const plan = await client.plans.get('basic-plan');
+```
+
+```typescript Task Polling
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+
+// Create a VPS and wait for task completion
+const createTask = await client.vps.create({
+  hostname: 'test.example.com',
+  plan: 'basic-plan',
+  osid: '123'
+});
+
+// Poll the task until it completes
+const result = await client.tasks.poll(createTask.taskid);
+console.log('VPS created:', result);
+```
+
+</CodeGroup>
+
+## Resource Architecture
+
+The VirtualizorClient uses a namespaced resource architecture to organize API operations:
+
+```
+VirtualizorClient
+├── vps: VpsResource
+│   ├── list()
+│   ├── get()
+│   ├── create()
+│   ├── delete()
+│   ├── start()
+│   ├── stop()
+│   └── ...
+├── users: UsersResource
+│   ├── list()
+│   ├── create()
+│   └── ...
+├── plans: PlansResource
+│   ├── list()
+│   ├── get()
+│   └── ...
+└── tasks: TasksResource
+    ├── get()
+    └── poll()
+```
+
+Each resource namespace provides type-safe methods for interacting with specific parts of the Virtualizor API. See the individual resource documentation pages for detailed method signatures and examples.
+
+## Configuration Reference
+
+For detailed information about configuration options, default values, and advanced configuration scenarios, see the [Configuration](/guides/configuration) guide.
+
+## Type Safety
+
+The VirtualizorClient is fully typed with TypeScript, providing autocomplete and type checking for all methods and parameters:
+
+```typescript
+import { createVirtualizorClient, type VirtualizorConfig } from 'virtualizorjs';
+
+const config: VirtualizorConfig = {
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+};
+
+const client = createVirtualizorClient(config);
+
+// TypeScript will provide autocomplete and type checking
+await client.vps.list(); // Returns Promise<Record<string, VPS>>
+await client.users.list(); // Returns Promise<Record<string, User>>
+```
+
+## Error Handling
+
+The client automatically handles API errors and throws `VirtualizorApiError` exceptions for failed requests:
+
+```typescript
+import { createVirtualizorClient, VirtualizorApiError } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virt.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-password'
+});
+
+try {
+  const vps = await client.vps.get('invalid-id');
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    console.error('API Error:', error.message);
+    console.error('Status:', error.status);
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VPS Resource" icon="server" href="/api/vps">
+    Manage VPS instances
+  </Card>
+  <Card title="Users Resource" icon="users" href="/api/users">
+    Manage user accounts
+  </Card>
+  <Card title="Plans Resource" icon="list" href="/api/plans">
+    Manage VPS plans
+  </Card>
+  <Card title="Tasks Resource" icon="clock" href="/api/tasks">
+    Handle async operations
+  </Card>
+</CardGroup>

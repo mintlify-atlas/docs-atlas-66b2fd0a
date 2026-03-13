@@ -1,0 +1,405 @@
+---
+title: 'Manage VPS'
+description: 'Learn how to start, stop, restart, rebuild, clone, and manage VPS instances'
+---
+
+## Overview
+
+VirtualizorJS provides comprehensive methods to manage your VPS instances, including power operations, rebuilding, cloning, migration, and monitoring.
+
+## Power Operations
+
+Control the power state of your VPS instances:
+
+<CodeGroup>
+
+```typescript Start VPS
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+const result = await client.vps.start('1234');
+
+if (result.taskid) {
+  // Wait for the start operation to complete
+  await client.tasks.wait(result.taskid, {
+    pollIntervalMs: 500,
+    timeoutMs: 30000,
+  });
+  console.log('VPS started successfully');
+}
+```
+
+```typescript Stop VPS
+const result = await client.vps.stop('1234');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('VPS stopped successfully');
+}
+```
+
+```typescript Restart VPS
+const result = await client.vps.restart('1234');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('VPS restarted successfully');
+}
+```
+
+```typescript Power Off
+// Force power off (equivalent to pulling the plug)
+const result = await client.vps.poweroff('1234');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('VPS powered off');
+}
+```
+
+</CodeGroup>
+
+<Note>
+  The `stop()` method performs a graceful shutdown, while `poweroff()` forces an immediate shutdown. Use `poweroff()` only when the VPS is unresponsive.
+</Note>
+
+## Suspension Operations
+
+Suspend and unsuspend VPS instances:
+
+<CodeGroup>
+
+```typescript Suspend VPS
+const result = await client.vps.suspend('1234');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('VPS suspended');
+}
+```
+
+```typescript Unsuspend VPS
+const result = await client.vps.unsuspend('1234');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('VPS unsuspended');
+}
+```
+
+</CodeGroup>
+
+<Tip>
+  Suspended VPS instances retain their data and configuration but cannot be started until unsuspended. This is useful for temporarily disabling instances without deleting them.
+</Tip>
+
+## Rebuild VPS
+
+Reinstall the operating system on a VPS:
+
+```typescript
+const result = await client.vps.rebuild('1234', {
+  osid: 5,                      // New OS template ID
+  newpass: 'NewSecurePass123!', // New root password
+  conf: 1,                      // Confirmation flag (required)
+  format_primary: 1,            // Format the primary disk
+  eu_send_rebuild_email: 1,     // Send notification email
+  recipe: 10,                   // Apply post-rebuild recipe
+});
+
+if (result.taskid) {
+  console.log('Rebuild initiated...');
+  await client.tasks.wait(result.taskid, {
+    pollIntervalMs: 2000,
+    timeoutMs: 300000, // 5 minutes
+  });
+  console.log('VPS rebuild completed');
+}
+```
+
+### Rebuild Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `osid` | `number` | Yes | OS template ID to rebuild with |
+| `newpass` | `string` | Yes | New root password for the VPS |
+| `conf` | `1` | Yes | Must be set to `1` to confirm the rebuild |
+| `format_primary` | `0 \| 1` | No | Format primary disk (default: 0) |
+| `eu_send_rebuild_email` | `0 \| 1` | No | Send rebuild notification email |
+| `recipe` | `number` | No | Recipe ID to apply post-rebuild |
+| `sshkey` | `string` | No | SSH key to inject |
+
+<Note>
+  Rebuilding a VPS will **permanently delete all data** on the instance. Ensure you have backups before proceeding.
+</Note>
+
+## Clone VPS
+
+Create an exact copy of a VPS on the same or different server:
+
+```typescript
+const result = await client.vps.clone('1234', {
+  hostname: 'cloned-vps',           // Hostname for the clone
+  rootpass: 'ClonePassword123!',    // Root password for the clone
+  from_server: 1,                   // Source server ID
+  to_server: 2,                     // Destination server ID
+});
+
+if (result.taskid) {
+  console.log('Cloning VPS...');
+  await client.tasks.wait(result.taskid, {
+    pollIntervalMs: 3000,
+    timeoutMs: 600000, // 10 minutes for large VPS
+  });
+  console.log('VPS cloned successfully');
+}
+```
+
+### Clone Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `hostname` | `string` | Yes | Hostname for the new cloned VPS |
+| `rootpass` | `string` | Yes | Root password for the new cloned VPS |
+| `from_server` | `number` | Yes | Source server ID (where the VPS lives) |
+| `to_server` | `number` | Yes | Destination server ID (where to clone) |
+
+<Tip>
+  To clone a VPS on the same server, set `from_server` and `to_server` to the same server ID.
+</Tip>
+
+## Migrate VPS
+
+Move a VPS to a different physical server:
+
+```typescript
+const result = await client.vps.migrate('1234', {
+  serid: 5,                          // Destination server ID
+  from_ip: '192.168.1.100',          // Source server IP
+  from_pass: 'source-server-pass',   // Source server password
+  online: 1,                         // Live migration (0 = offline)
+  disable_gzip: 0,                   // Use gzip compression
+  ignore_if_vdfconflict: 0,          // Error on VDF conflicts
+});
+
+if (result.taskid) {
+  console.log('Migrating VPS...');
+  await client.tasks.wait(result.taskid, {
+    pollIntervalMs: 5000,
+    timeoutMs: 900000, // 15 minutes
+  });
+  console.log('Migration completed');
+}
+```
+
+### Migration Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serid` | `number` | Yes | Destination server ID |
+| `from_ip` | `string` | Yes | Source server IP address |
+| `from_pass` | `string` | Yes | Source server API/root password |
+| `online` | `0 \| 1` | No | `1` for live migration, `0` for offline (default: 0) |
+| `disable_gzip` | `0 \| 1` | No | `1` to disable gzip compression (default: 0) |
+| `ignore_if_vdfconflict` | `0 \| 1` | No | `0` to error on conflicts, `1` to ignore (default: 0) |
+
+<Note>
+  Live migration (`online: 1`) keeps the VPS running during migration with minimal downtime, but requires both servers to support the feature and have compatible configurations.
+</Note>
+
+## VNC Access
+
+Get VNC connection information for remote console access:
+
+```typescript
+const vncInfo = await client.vps.vnc('1234');
+
+if (vncInfo.novnc) {
+  console.log(`NoVNC URL: ${vncInfo.novnc}`);
+  // Open this URL in a browser for console access
+}
+```
+
+<Tip>
+  VNC access is useful when SSH is unavailable or you need to access the VPS console during boot or troubleshoot network issues.
+</Tip>
+
+## Get VPS Statistics
+
+Retrieve resource usage and bandwidth statistics:
+
+```typescript
+const stats = await client.vps.stats('1234');
+
+if (stats.vs_stats) {
+  console.log('Resource usage:', stats.vs_stats);
+}
+
+if (stats.vs_bandwidth) {
+  console.log('Bandwidth usage:', stats.vs_bandwidth);
+}
+
+console.log(`Time taken: ${stats.time_taken}ms`);
+```
+
+<Note>
+  The exact structure of `vs_stats` and `vs_bandwidth` varies depending on your Virtualizor server version and virtualization type.
+</Note>
+
+## Check VPS Status
+
+Get the current operational status of a VPS:
+
+```typescript
+const status = await client.vps.status('1234');
+console.log('VPS Status:', status);
+```
+
+## Delete VPS
+
+Permanently delete a VPS instance:
+
+```typescript
+const result = await client.vps.delete('1234');
+
+if (result.taskid) {
+  console.log('Deleting VPS...');
+  await client.tasks.wait(result.taskid);
+  console.log('VPS deleted successfully');
+}
+```
+
+<Note>
+  Deleting a VPS is **irreversible**. All data, configurations, and IP addresses will be permanently removed. Always create backups before deletion.
+</Note>
+
+## Complete Management Example
+
+Here's a complete example demonstrating common VPS management tasks:
+
+```typescript
+import { createVirtualizorClient, VirtualizorApiError } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+async function manageVPS(vpsId: string) {
+  try {
+    // Get current VPS details
+    const vps = await client.vps.get(vpsId);
+    console.log(`Managing VPS: ${vps.hostname}`);
+    
+    // Check if suspended
+    if (vps.suspended === '1') {
+      console.log('VPS is suspended, unsuspending...');
+      const unsuspendResult = await client.vps.unsuspend(vpsId);
+      if (unsuspendResult.taskid) {
+        await client.tasks.wait(unsuspendResult.taskid);
+      }
+    }
+    
+    // Start the VPS if it's not running
+    if (vps.machine_status !== '1') {
+      console.log('Starting VPS...');
+      const startResult = await client.vps.start(vpsId);
+      if (startResult.taskid) {
+        await client.tasks.wait(startResult.taskid, {
+          pollIntervalMs: 500,
+          timeoutMs: 30000,
+        });
+        console.log('VPS started');
+      }
+    }
+    
+    // Get statistics
+    const stats = await client.vps.stats(vpsId);
+    console.log('Statistics retrieved:', stats.time_taken);
+    
+    // Get VNC access
+    const vnc = await client.vps.vnc(vpsId);
+    if (vnc.novnc) {
+      console.log(`Console access: ${vnc.novnc}`);
+    }
+    
+  } catch (error) {
+    if (error instanceof VirtualizorApiError) {
+      console.error(`API Error [${error.code}]: ${error.message}`);
+    } else if (error instanceof Error && error.message.includes('timeout')) {
+      console.error('Operation timed out');
+    } else {
+      console.error('Unexpected error:', error);
+    }
+  }
+}
+
+manageVPS('1234');
+```
+
+## Best Practices
+
+<Steps>
+
+<Step title="Always Use Task Polling">
+  Most VPS operations are asynchronous. Always check for a task ID and wait for completion:
+
+  ```typescript
+  const result = await client.vps.start('1234');
+  if (result.taskid) {
+    await client.tasks.wait(result.taskid);
+  }
+  ```
+</Step>
+
+<Step title="Handle Errors Gracefully">
+  Different operations can fail for various reasons. Always wrap calls in try-catch:
+
+  ```typescript
+  try {
+    await client.vps.restart('1234');
+  } catch (error) {
+    if (error instanceof VirtualizorApiError) {
+      // Handle API-specific errors
+    }
+  }
+  ```
+</Step>
+
+<Step title="Verify State Before Operations">
+  Check the VPS state before performing operations:
+
+  ```typescript
+  const vps = await client.vps.get('1234');
+  
+  if (vps.suspended === '1') {
+    console.log('Cannot start: VPS is suspended');
+    return;
+  }
+  
+  await client.vps.start('1234');
+  ```
+</Step>
+
+<Step title="Use Appropriate Timeouts">
+  Different operations take different amounts of time. Adjust timeouts accordingly:
+
+  ```typescript
+  // Quick operations: 30 seconds
+  await client.tasks.wait(taskId, { timeoutMs: 30000 });
+  
+  // Rebuild: 5 minutes
+  await client.tasks.wait(taskId, { timeoutMs: 300000 });
+  
+  // Migration: 15 minutes
+  await client.tasks.wait(taskId, { timeoutMs: 900000 });
+  ```
+</Step>
+
+</Steps>

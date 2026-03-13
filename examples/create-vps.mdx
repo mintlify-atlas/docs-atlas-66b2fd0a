@@ -1,0 +1,299 @@
+---
+title: 'Create VPS'
+description: 'Learn how to create new VPS instances and wait for provisioning to complete'
+---
+
+## Overview
+
+Creating a VPS is an asynchronous operation that returns a task ID. You can poll this task to monitor the creation progress and wait for completion.
+
+## Basic VPS Creation
+
+Create a new VPS with minimum required parameters:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+const result = await client.vps.create({
+  hostname: 'example-vps',
+  rootpass: 'SecurePassword123!',
+  osid: 1, // OS template ID
+});
+
+console.log(`VPS creation initiated. Task ID: ${result.taskid}`);
+```
+
+## Complete Example with Task Polling
+
+This example shows how to create a VPS and wait for the provisioning to complete:
+
+```typescript
+import { createVirtualizorClient, VirtualizorApiError } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+async function createAndWait() {
+  try {
+    console.log('Creating VPS...');
+    const result = await client.vps.create({
+      hostname: 'example-vps',
+      rootpass: 'SecurePassword123!',
+      osid: 1,
+    });
+
+    console.log(`VPS creation task initiated: ${result.taskid}`);
+
+    if (result.taskid) {
+      console.log('Waiting for task completion...');
+      const taskResult = await client.tasks.wait(result.taskid, {
+        pollIntervalMs: 2000,  // Poll every 2 seconds
+        timeoutMs: 60000,       // Timeout after 60 seconds
+      });
+
+      console.log('VPS created successfully:', taskResult);
+    }
+  } catch (error) {
+    if (error instanceof VirtualizorApiError) {
+      console.error(`API Error [${error.code}]: ${error.message}`);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+  }
+}
+
+createAndWait();
+```
+
+## Required Parameters
+
+The following parameters are required when creating a VPS:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `hostname` | `string` | Hostname for the VPS |
+| `rootpass` | `string` | Root/administrator password |
+| `osid` | `number` | Operating system template ID |
+
+<Note>
+  Ensure your password meets the security requirements of your Virtualizor server. Typically, passwords should be at least 8 characters with a mix of letters, numbers, and special characters.
+</Note>
+
+## Optional Parameters
+
+Customize your VPS with additional parameters:
+
+<CodeGroup>
+
+```typescript Resource Allocation
+const result = await client.vps.create({
+  hostname: 'production-server',
+  rootpass: 'SecurePassword123!',
+  osid: 1,
+  
+  // Resource allocation
+  ram: 4096,           // RAM in MB
+  space: 100,          // Disk space in GB
+  bandwidth: 1000,     // Bandwidth in GB
+  cpu: 4,              // Number of CPU cores
+  cpu_percent: 100,    // CPU percentage allocation
+});
+```
+
+```typescript Network Configuration
+const result = await client.vps.create({
+  hostname: 'web-server',
+  rootpass: 'SecurePassword123!',
+  osid: 1,
+  
+  // Network settings
+  ips: 2,              // Number of IPv4 addresses
+  ips_int: 1,          // Number of internal IPs
+});
+```
+
+```typescript Advanced Options
+const result = await client.vps.create({
+  hostname: 'app-server',
+  rootpass: 'SecurePassword123!',
+  osid: 1,
+  
+  // Advanced configuration
+  plid: 5,                    // Plan ID
+  user_email: 'user@example.com',
+  virt: 'kvm',                // Virtualization type
+  serid: 1,                   // Server ID
+  node_select: 1,             // Enable node selection
+  recipe: 10,                 // Post-installation recipe ID
+});
+```
+
+```typescript SSH Key Authentication
+const result = await client.vps.create({
+  hostname: 'secure-server',
+  rootpass: 'SecurePassword123!',
+  osid: 1,
+  
+  // SSH configuration
+  sshkey: 'ssh-rsa AAAAB3NzaC1yc2E...',
+  nopassword: 1,       // Disable password authentication
+});
+```
+
+</CodeGroup>
+
+## All Optional Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `plid` | `number` | Plan ID to use for resource allocation |
+| `user_email` | `string` | Email address for the VPS user |
+| `ips` | `number` | Number of IPv4 addresses |
+| `ips_int` | `number` | Number of internal IP addresses |
+| `space` | `number` | Disk space in GB |
+| `ram` | `number` | RAM in MB |
+| `burst` | `number` | Burst RAM in MB |
+| `bandwidth` | `number` | Monthly bandwidth in GB |
+| `cpu` | `number` | Number of CPU cores |
+| `cpu_percent` | `number` | CPU percentage allocation |
+| `virt` | `VirtType` | Virtualization type ('kvm', 'openvz', 'xen', etc.) |
+| `serid` | `number` | Server ID to create the VPS on |
+| `node_select` | `0 \| 1` | Enable automatic node selection |
+| `recipe` | `number` | Post-installation recipe/script ID |
+| `sshkey` | `string` | SSH public key to inject |
+| `nopassword` | `0 \| 1` | Disable password authentication (requires SSH key) |
+
+## Task Polling Best Practices
+
+<Steps>
+
+<Step title="Configure Appropriate Timeouts">
+  VPS creation can take several minutes depending on the OS template and server load. Set realistic timeout values:
+
+  ```typescript
+  const taskResult = await client.tasks.wait(result.taskid, {
+    pollIntervalMs: 2000,   // Poll every 2 seconds
+    timeoutMs: 300000,      // 5 minute timeout for large VPS
+  });
+  ```
+</Step>
+
+<Step title="Handle Timeout Errors">
+  Catch and handle timeout errors appropriately:
+
+  ```typescript
+  try {
+    const taskResult = await client.tasks.wait(result.taskid, {
+      pollIntervalMs: 2000,
+      timeoutMs: 60000,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('timeout')) {
+      console.log('Task is still running. Check status manually.');
+      // The VPS might still be created, check later
+    } else {
+      throw error;
+    }
+  }
+  ```
+</Step>
+
+<Step title="Verify VPS After Creation">
+  After the task completes, verify the VPS exists:
+
+  ```typescript
+  const taskResult = await client.tasks.wait(result.taskid);
+  
+  // Get the newly created VPS
+  const vpsList = await client.vps.list({
+    vpshostname: 'example-vps'
+  });
+  
+  const newVps = Object.values(vpsList)[0];
+  if (newVps) {
+    console.log(`VPS created with ID: ${newVps.vpsid}`);
+  }
+  ```
+</Step>
+
+</Steps>
+
+## Error Handling
+
+Common errors during VPS creation:
+
+```typescript
+import { VirtualizorApiError } from 'virtualizorjs';
+
+try {
+  const result = await client.vps.create({
+    hostname: 'example-vps',
+    rootpass: 'SecurePassword123!',
+    osid: 1,
+  });
+  
+  if (result.taskid) {
+    await client.tasks.wait(result.taskid);
+  }
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    switch (error.code) {
+      case 'insufficient_resources':
+        console.error('Not enough resources available');
+        break;
+      case 'invalid_osid':
+        console.error('Invalid OS template ID');
+        break;
+      case 'weak_password':
+        console.error('Password does not meet requirements');
+        break;
+      default:
+        console.error(`API Error [${error.code}]: ${error.message}`);
+    }
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
+```
+
+<Tip>
+  Always store the task ID returned by `create()`. If your application crashes during provisioning, you can use the task ID to check the status later.
+</Tip>
+
+## Checking Task Status Manually
+
+If you prefer to check task status manually instead of using `wait()`:
+
+```typescript
+const result = await client.vps.create({
+  hostname: 'example-vps',
+  rootpass: 'SecurePassword123!',
+  osid: 1,
+});
+
+if (result.taskid) {
+  // Check status later
+  const status = await client.tasks.get(result.taskid);
+  
+  if (status.status === 'complete') {
+    console.log('VPS creation completed');
+  } else if (status.status === 'running') {
+    console.log('VPS creation in progress');
+  } else if (status.status === 'failed') {
+    console.error('VPS creation failed');
+  }
+}
+```
+
+<Note>
+  The exact task status values and structure depend on your Virtualizor server configuration. Consult your server's API documentation for specific details.
+</Note>

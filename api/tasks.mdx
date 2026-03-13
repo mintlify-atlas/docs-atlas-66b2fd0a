@@ -1,0 +1,413 @@
+---
+title: 'Tasks'
+description: 'Monitor asynchronous operations'
+---
+
+The `tasks` resource provides methods for monitoring asynchronous operations initiated by other API methods. Most VPS management operations (create, delete, start, stop, etc.) return an `AsyncTaskResult` containing a task ID that can be polled for completion status.
+
+## Overview
+
+Access the Tasks resource through the client:
+
+```typescript
+const tasks = client.tasks;
+```
+
+## Why Tasks Matter
+
+Many Virtualizor operations are asynchronous and can take several seconds or minutes to complete:
+
+- Creating a VPS may take 1-5 minutes depending on the OS template
+- Migrating a VPS can take 10-30 minutes depending on disk size
+- Rebuilding a VPS typically takes 2-5 minutes
+- Starting/stopping operations usually complete in 10-30 seconds
+
+The Tasks API allows you to monitor these operations without blocking your application.
+
+## Methods
+
+### get()
+
+Retrieve the current status of a task.
+
+```typescript
+get(taskId: string): Promise<Task | undefined>
+```
+
+<ParamField path="taskId" type="string" required>
+  The task ID to retrieve (from AsyncTaskResult.taskid)
+</ParamField>
+
+<ResponseField name="result" type="Task | undefined">
+  The task object, or undefined if the task is not found
+  
+  <Expandable title="Task properties">
+    <ResponseField name="id" type="string" required>
+      Task ID
+    </ResponseField>
+    <ResponseField name="action" type="string" required>
+      The action being performed (e.g., "addvs", "rebuild", "migrate")
+    </ResponseField>
+    <ResponseField name="status" type="string" required>
+      Task status:
+      - `"1"` or `"done"` - Task completed successfully
+      - `"error"` or `"-1"` - Task failed
+      - `"0"` or other values - Task is still running
+    </ResponseField>
+    <ResponseField name="vpsid" type="string" optional>
+      VPS ID associated with this task
+    </ResponseField>
+    <ResponseField name="data" type="unknown" optional>
+      Additional task data (varies by operation)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const task = await client.tasks.get('12345');
+
+if (task) {
+  console.log(`Task ${task.id} - ${task.action}`);
+  console.log(`Status: ${task.status}`);
+  
+  if (task.status === '1' || task.status === 'done') {
+    console.log('Task completed successfully');
+  } else if (task.status === 'error' || task.status === '-1') {
+    console.log('Task failed');
+  } else {
+    console.log('Task is still running...');
+  }
+}
+```
+
+---
+
+### wait()
+
+Poll a task until it completes (successfully or with error) or times out.
+
+```typescript
+wait(
+  taskId: string,
+  options?: { pollIntervalMs?: number; timeoutMs?: number }
+): Promise<Task>
+```
+
+<ParamField path="taskId" type="string" required>
+  The task ID to wait for
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Polling configuration options
+  
+  <Expandable title="properties">
+    <ParamField path="pollIntervalMs" type="number" optional default="2000">
+      Interval between status checks in milliseconds
+    </ParamField>
+    <ParamField path="timeoutMs" type="number" optional default="120000">
+      Maximum time to wait before throwing a timeout error (in milliseconds)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="Task">
+  The completed task object (see get() for property documentation)
+</ResponseField>
+
+**Behavior:**
+
+1. Polls the task every `pollIntervalMs` (default: 2000ms / 2 seconds)
+2. Returns the task when status is `"1"` or `"done"` (success)
+3. Throws an error if status is `"error"` or `"-1"` (failure)
+4. Throws a timeout error if `timeoutMs` is exceeded (default: 120000ms / 2 minutes)
+5. Throws an error if the task is not found
+
+**Example:**
+
+```typescript
+// Create a VPS
+const result = await client.vps.create({
+  hostname: 'web-server.example.com',
+  rootpass: 'SecureP@ssw0rd!',
+  osid: 123,
+  plid: 5,
+});
+
+if (result.taskid) {
+  console.log('VPS creation started...');
+  
+  try {
+    // Wait for completion with default settings (2s poll, 2min timeout)
+    const task = await client.tasks.wait(result.taskid);
+    console.log('VPS created successfully!');
+    console.log('VPS ID:', task.vpsid);
+  } catch (error) {
+    console.error('VPS creation failed:', error.message);
+  }
+}
+```
+
+**Example with custom polling:**
+
+```typescript
+// For long-running operations like migration
+const result = await client.vps.migrate('12345', {
+  serid: 5,
+  from_ip: '192.168.1.100',
+  from_pass: 'password',
+});
+
+if (result.taskid) {
+  try {
+    const task = await client.tasks.wait(result.taskid, {
+      pollIntervalMs: 5000,  // Check every 5 seconds
+      timeoutMs: 600000,     // 10 minute timeout
+    });
+    console.log('Migration completed successfully');
+  } catch (error) {
+    if (error.message.includes('timed out')) {
+      console.error('Migration is taking longer than expected');
+    } else {
+      console.error('Migration failed:', error.message);
+    }
+  }
+}
+```
+
+**Throws:**
+- Error if task is not found
+- Error if task fails (status is "error" or "-1")
+- Error if operation times out
+
+---
+
+## Common Workflows
+
+### Manual Polling with Status Updates
+
+If you want to display progress updates to users:
+
+```typescript
+const result = await client.vps.create({
+  hostname: 'web-server.example.com',
+  rootpass: 'SecureP@ssw0rd!',
+  osid: 123,
+  plid: 5,
+});
+
+if (result.taskid) {
+  const taskId = result.taskid;
+  const maxAttempts = 60; // 2 minutes with 2s intervals
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    const task = await client.tasks.get(taskId);
+    
+    if (!task) {
+      throw new Error('Task not found');
+    }
+    
+    if (task.status === '1' || task.status === 'done') {
+      console.log('VPS created successfully!');
+      break;
+    } else if (task.status === 'error' || task.status === '-1') {
+      throw new Error('VPS creation failed');
+    } else {
+      console.log(`Still creating... (${i * 2}s elapsed)`);
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
+```
+
+### Using wait() with Multiple Operations
+
+```typescript
+// Create multiple VPS instances and wait for all
+const vpsConfigs = [
+  { hostname: 'web-01.example.com', rootpass: 'pass1', osid: 123, plid: 5 },
+  { hostname: 'web-02.example.com', rootpass: 'pass2', osid: 123, plid: 5 },
+  { hostname: 'web-03.example.com', rootpass: 'pass3', osid: 123, plid: 5 },
+];
+
+const createPromises = vpsConfigs.map(async (config) => {
+  const result = await client.vps.create(config);
+  if (result.taskid) {
+    return client.tasks.wait(result.taskid);
+  }
+  throw new Error('No task ID returned');
+});
+
+try {
+  const tasks = await Promise.all(createPromises);
+  console.log(`Created ${tasks.length} VPS instances:`);
+  tasks.forEach(task => {
+    console.log(`  - VPS ${task.vpsid}`);
+  });
+} catch (error) {
+  console.error('One or more VPS creations failed:', error.message);
+}
+```
+
+### Immediate vs Asynchronous Operations
+
+Some operations may complete immediately and not return a task ID:
+
+```typescript
+const result = await client.vps.delete('12345');
+
+if (result.done === 1) {
+  // Operation completed immediately
+  console.log('VPS deleted successfully');
+} else if (result.taskid) {
+  // Operation is asynchronous
+  await client.tasks.wait(result.taskid);
+  console.log('VPS deleted successfully');
+}
+```
+
+### Robust Error Handling
+
+```typescript
+async function createVPSWithRetry(config, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await client.vps.create(config);
+      
+      if (result.taskid) {
+        const task = await client.tasks.wait(result.taskid, {
+          timeoutMs: 300000, // 5 minutes
+        });
+        return task.vpsid;
+      }
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error.message);
+      
+      if (attempt === maxRetries) {
+        throw new Error(`Failed to create VPS after ${maxRetries} attempts`);
+      }
+      
+      // Wait before retrying
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+}
+
+try {
+  const vpsId = await createVPSWithRetry({
+    hostname: 'web-server.example.com',
+    rootpass: 'SecureP@ssw0rd!',
+    osid: 123,
+    plid: 5,
+  });
+  console.log(`VPS created successfully: ${vpsId}`);
+} catch (error) {
+  console.error('Failed to create VPS:', error.message);
+}
+```
+
+---
+
+## Type Definitions
+
+### Task
+
+```typescript
+interface Task {
+  id: string;
+  action: string;
+  status: string;  // "1"/"done" = success, "error"/"-1" = failed, other = running
+  vpsid?: string;
+  data?: unknown;
+}
+```
+
+### AsyncTaskResult
+
+Returned by asynchronous operations:
+
+```typescript
+interface AsyncTaskResult {
+  taskid?: string;  // Present if operation is asynchronous
+  done?: 1;         // Set to 1 if operation completed immediately
+}
+```
+
+---
+
+## Best Practices
+
+### 1. Always Check for Task ID
+
+Not all operations return a task ID:
+
+```typescript
+const result = await client.vps.start('12345');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+} else if (result.done === 1) {
+  console.log('Operation completed immediately');
+}
+```
+
+### 2. Adjust Timeouts for Different Operations
+
+Different operations have different expected durations:
+
+```typescript
+// Quick operations (start/stop)
+await client.tasks.wait(taskId, { timeoutMs: 60000 }); // 1 minute
+
+// Medium operations (create/rebuild)
+await client.tasks.wait(taskId, { timeoutMs: 300000 }); // 5 minutes
+
+// Long operations (migrate)
+await client.tasks.wait(taskId, { timeoutMs: 1800000 }); // 30 minutes
+```
+
+### 3. Handle Timeouts Gracefully
+
+A timeout doesn't necessarily mean failure:
+
+```typescript
+try {
+  await client.tasks.wait(taskId, { timeoutMs: 120000 });
+} catch (error) {
+  if (error.message.includes('timed out')) {
+    console.log('Operation is taking longer than expected');
+    console.log('You can check status later with tasks.get()');
+    // Store taskId for later checking
+  } else {
+    throw error;
+  }
+}
+```
+
+### 4. Use Longer Poll Intervals for Long Operations
+
+Reduce API load for operations that take a long time:
+
+```typescript
+// For migration that might take 20+ minutes
+await client.tasks.wait(taskId, {
+  pollIntervalMs: 10000,  // Check every 10 seconds
+  timeoutMs: 1800000,     // 30 minute timeout
+});
+```
+
+---
+
+## Default Configuration
+
+The SDK uses these default values for task polling:
+
+```typescript
+const DEFAULT_TASK_POLLING = {
+  pollIntervalMs: 2000,   // 2 seconds between checks
+  timeoutMs: 120000,      // 2 minute timeout
+};
+```
+
+You can override these on a per-call basis using the options parameter in `wait()`.

@@ -1,0 +1,193 @@
+---
+title: 'List VPS Instances'
+description: 'Learn how to retrieve and filter VPS instances'
+---
+
+## Overview
+
+The `list()` method retrieves all VPS instances associated with your Virtualizor account. You can filter results using various parameters to find specific instances.
+
+## Basic Listing
+
+Retrieve all VPS instances and iterate through them:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+const vpsList = await client.vps.list();
+
+// The result is a Record<string, VPS> where keys are VPS IDs
+for (const [vpsid, vps] of Object.entries(vpsList)) {
+  console.log(`${vpsid}: ${vps.hostname}`);
+  console.log(`  OS: ${vps.os_name}`);
+  console.log(`  RAM: ${vps.ram} MB`);
+  console.log(`  Bandwidth: ${vps.bandwidth} GB`);
+}
+```
+
+## Filtering Results
+
+Use the `ListVPSParams` interface to filter VPS instances by various criteria:
+
+<CodeGroup>
+
+```typescript Filter by User
+const vpsList = await client.vps.list({
+  user: 'user@example.com'
+});
+```
+
+```typescript Filter by Hostname
+const vpsList = await client.vps.list({
+  vpshostname: 'web-server'
+});
+```
+
+```typescript Filter by IP Address
+const vpsList = await client.vps.list({
+  vpsip: '192.168.1.100'
+});
+```
+
+```typescript Filter by Status
+const vpsList = await client.vps.list({
+  vsstatus: 'online'
+});
+```
+
+```typescript Filter by Virtualization Type
+const vpsList = await client.vps.list({
+  vstype: 'kvm'
+});
+```
+
+</CodeGroup>
+
+## Available Filter Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `user` | `string \| number` | Filter by user ID or email |
+| `vpsid` | `string \| number` | Filter by specific VPS ID |
+| `vpsname` | `string` | Filter by VPS name |
+| `vpsip` | `string` | Filter by IP address |
+| `vpshostname` | `string` | Filter by hostname |
+| `vsstatus` | `string` | Filter by status (e.g., 'online', 'offline') |
+| `vstype` | `VirtType` | Filter by virtualization type ('kvm', 'openvz', 'xen', 'lxc', 'proxo', 'proxk', 'proxl', 'vzk', 'vzo') |
+| `serid` | `number` | Filter by server ID |
+| `plid` | `number` | Filter by plan ID |
+| `bpid` | `number` | Filter by backup plan ID |
+
+## Working with Results
+
+<Steps>
+
+<Step title="Convert to Array">
+  Since `list()` returns a `Record<string, VPS>`, you can convert it to an array for easier manipulation:
+
+  ```typescript
+  const vpsList = await client.vps.list();
+  const vpsArray = Object.values(vpsList);
+  
+  // Sort by hostname
+  const sorted = vpsArray.sort((a, b) => 
+    a.hostname.localeCompare(b.hostname)
+  );
+  ```
+</Step>
+
+<Step title="Filter in Memory">
+  Apply additional filtering logic after retrieval:
+
+  ```typescript
+  const vpsList = await client.vps.list();
+  
+  // Find VPS instances with low RAM
+  const lowRam = Object.values(vpsList).filter(vps => 
+    parseInt(vps.ram) < 2048
+  );
+  
+  // Find suspended instances
+  const suspended = Object.values(vpsList).filter(vps => 
+    vps.suspended === '1'
+  );
+  ```
+</Step>
+
+<Step title="Count Instances">
+  Get statistics about your VPS instances:
+
+  ```typescript
+  const vpsList = await client.vps.list();
+  const vpsArray = Object.values(vpsList);
+  
+  console.log(`Total VPS instances: ${vpsArray.length}`);
+  
+  const byOS = vpsArray.reduce((acc, vps) => {
+    acc[vps.os_name] = (acc[vps.os_name] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  console.log('Instances by OS:', byOS);
+  ```
+</Step>
+
+</Steps>
+
+## Error Handling
+
+Always wrap API calls in try-catch blocks to handle errors gracefully:
+
+```typescript
+import { createVirtualizorClient, VirtualizorApiError } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'your-server.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+try {
+  const vpsList = await client.vps.list();
+  
+  console.log('VPS Instances:');
+  for (const [vpsid, vps] of Object.entries(vpsList)) {
+    console.log(`  ${vpsid}: ${vps.hostname}`);
+    console.log(`    OS: ${vps.os_name}`);
+  }
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    console.error(`API Error [${error.code}]: ${error.message}`);
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
+```
+
+<Note>
+  The `list()` method returns an empty object `{}` if no VPS instances are found, not `null` or `undefined`.
+</Note>
+
+## Getting a Single VPS
+
+If you need details about a specific VPS instance, use the `get()` method instead:
+
+```typescript
+const vps = await client.vps.get('1234');
+
+console.log(`ID: ${vps.vpsid}`);
+console.log(`Hostname: ${vps.hostname}`);
+console.log(`OS: ${vps.os_name}`);
+console.log(`RAM: ${vps.ram} MB`);
+console.log(`Bandwidth: ${vps.bandwidth} GB`);
+```
+
+<Tip>
+  Use `get()` when you know the VPS ID and need detailed information about a single instance. Use `list()` with filters when you need to search or retrieve multiple instances.
+</Tip>

@@ -1,0 +1,164 @@
+---
+title: Introduction
+description: A TypeScript-first SDK for the Virtualizor server management API with zero production dependencies and comprehensive VPS lifecycle management.
+---
+
+{/* Hero images can be added here if available */}
+
+## What is VirtualizorJS?
+
+VirtualizorJS is a modern, developer-friendly SDK for the [Virtualizor](https://www.virtualizor.com/) server management API. Built with TypeScript from the ground up, it provides a clean, namespaced interface for managing VPS instances, users, plans, and asynchronous tasks.
+
+Whether you're automating VPS provisioning, building a custom control panel, or integrating Virtualizor into your existing infrastructure, VirtualizorJS gives you the tools you need with excellent developer experience.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="TypeScript-First"
+    icon="code"
+    iconType="duotone"
+  >
+    Fully typed interfaces for all API methods, parameters, and responses. Get autocomplete and type safety throughout your codebase.
+  </Card>
+  
+  <Card
+    title="Zero Dependencies"
+    icon="feather"
+    iconType="duotone"
+  >
+    No production dependencies. The entire SDK uses only Node.js built-in modules, keeping your bundle size minimal.
+  </Card>
+  
+  <Card
+    title="Async Task Polling"
+    icon="clock"
+    iconType="duotone"
+  >
+    Built-in support for polling long-running operations. Wait for VPS creation, migration, or rebuild tasks to complete with configurable timeouts.
+  </Card>
+  
+  <Card
+    title="Namespaced API"
+    icon="folder-tree"
+    iconType="duotone"
+  >
+    Clean, organized interface with dedicated namespaces: `vps`, `users`, `plans`, and `tasks`. No more guessing which method does what.
+  </Card>
+  
+  <Card
+    title="Comprehensive VPS Management"
+    icon="server"
+    iconType="duotone"
+  >
+    Full lifecycle support: create, start, stop, restart, rebuild, clone, migrate, suspend, and more. Everything you need to manage virtual servers.
+  </Card>
+  
+  <Card
+    title="Self-Signed SSL Support"
+    icon="shield-check"
+    iconType="duotone"
+  >
+    Handles self-signed certificates out of the box. Works with typical Virtualizor installations without certificate warnings.
+  </Card>
+</CardGroup>
+
+## Why VirtualizorJS?
+
+<AccordionGroup>
+  <Accordion title="Type Safety Across Your Stack">
+    Every API method, parameter, and response is fully typed. Import types like `VPS`, `CreateVPSParams`, `Task`, and more to ensure correctness at compile time. No more runtime surprises from mistyped property names or incorrect parameter structures.
+    
+    ```typescript
+    import type { VPS, CreateVPSParams } from 'virtualizorjs';
+    
+    const params: CreateVPSParams = {
+      hostname: 'my-server.example.com',
+      rootpass: 'SecurePassword123!',
+      osid: 1,
+      ram: 2048,  // TypeScript knows this should be a number
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Simplified Async Operations">
+    Virtualizor operations like creating, rebuilding, or migrating VPS instances are asynchronous. Instead of manually polling task status, use the built-in `tasks.wait()` helper:
+    
+    ```typescript
+    const result = await client.vps.create({ /* params */ });
+    const task = await client.tasks.wait(result.taskid!);
+    console.log('VPS ready!');
+    ```
+  </Accordion>
+  
+  <Accordion title="Clean, Predictable API">
+    Resources are organized into logical namespaces. All VPS operations are under `client.vps`, user management under `client.users`, and so on. The API surface is intuitive and easy to explore.
+  </Accordion>
+  
+  <Accordion title="Production-Ready Error Handling">
+    All SDK errors are instances of `VirtualizorApiError` with structured error codes and messages. Catch and handle API failures gracefully in your application.
+  </Accordion>
+</AccordionGroup>
+
+## Quick Example
+
+Here's a complete example that creates a client, lists VPS instances, and starts one:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+
+// List all VPS
+const vpsList = await client.vps.list();
+
+for (const [vpsId, vps] of Object.entries(vpsList)) {
+  console.log(`${vpsId}: ${vps.hostname} (${vps.os_name})`);
+}
+
+// Start a VPS and wait for it to complete
+const result = await client.vps.start('123');
+const task = await client.tasks.wait(result.taskid!);
+
+console.log('VPS started successfully!');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install VirtualizorJS using npm, yarn, pnpm, or bun
+  </Card>
+  
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with your first VPS operations
+  </Card>
+  
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api/client"
+  >
+    Explore all available methods and types
+  </Card>
+  
+  <Card
+    title="GitHub Repository"
+    icon="github"
+    href="https://github.com/kkMihai/virtualizorjs"
+  >
+    View source code and contribute
+  </Card>
+</CardGroup>

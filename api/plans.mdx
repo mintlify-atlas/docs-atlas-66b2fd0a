@@ -1,0 +1,303 @@
+---
+title: 'Plans'
+description: 'Manage VPS resource plans'
+---
+
+The `plans` resource provides methods for managing VPS resource allocation plans. Plans define resource limits like disk space, RAM, bandwidth, and CPU allocation that can be applied when creating VPS instances.
+
+## Overview
+
+Access the Plans resource through the client:
+
+```typescript
+const plans = client.plans;
+```
+
+## Methods
+
+### list()
+
+Retrieve all available plans.
+
+```typescript
+list(): Promise<Record<string, Plan>>
+```
+
+<ResponseField name="result" type="Record<string, Plan>">
+  A dictionary of plans keyed by plan ID
+  
+  <Expandable title="Plan properties">
+    <ResponseField name="pid" type="string" required>
+      Plan ID
+    </ResponseField>
+    <ResponseField name="plan_name" type="string" required>
+      Plan name
+    </ResponseField>
+    <ResponseField name="disk" type="string" required>
+      Disk space allocation in GB
+    </ResponseField>
+    <ResponseField name="ram" type="string" required>
+      RAM allocation in MB
+    </ResponseField>
+    <ResponseField name="bandwidth" type="string" required>
+      Monthly bandwidth allocation in GB
+    </ResponseField>
+    <ResponseField name="cpu" type="string" required>
+      CPU core allocation
+    </ResponseField>
+    <ResponseField name="virt" type="string" optional>
+      Virtualization type (kvm, xen, openvz, lxc, etc.)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const plans = await client.plans.list();
+
+for (const [pid, plan] of Object.entries(plans)) {
+  console.log(`Plan: ${plan.plan_name}`);
+  console.log(`  Disk: ${plan.disk} GB`);
+  console.log(`  RAM: ${plan.ram} MB`);
+  console.log(`  Bandwidth: ${plan.bandwidth} GB`);
+  console.log(`  CPU: ${plan.cpu} cores`);
+  if (plan.virt) {
+    console.log(`  Virtualization: ${plan.virt}`);
+  }
+}
+```
+
+---
+
+### create()
+
+Create a new resource plan.
+
+```typescript
+create(params: CreatePlanParams): Promise<AsyncTaskResult>
+```
+
+<ParamField path="params" type="CreatePlanParams" required>
+  Plan creation parameters
+  
+  <Expandable title="properties">
+    <ParamField path="plan_name" type="string" required>
+      Plan name (must be unique)
+    </ParamField>
+    <ParamField path="disk" type="number" required>
+      Disk space in GB
+    </ParamField>
+    <ParamField path="ram" type="number" required>
+      RAM in MB
+    </ParamField>
+    <ParamField path="bandwidth" type="number" required>
+      Monthly bandwidth in GB
+    </ParamField>
+    <ParamField path="cpu" type="number" required>
+      Number of CPU cores
+    </ParamField>
+    <ParamField path="virt" type="string" optional>
+      Virtualization type (kvm, xen, openvz, lxc, proxmox, virtuozzo, xcp, hyperv)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  <Expandable title="properties">
+    <ResponseField name="taskid" type="string" optional>
+      Task ID for monitoring the creation progress
+    </ResponseField>
+    <ResponseField name="done" type="1" optional>
+      Set to 1 if operation completed immediately
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.plans.create({
+  plan_name: 'Standard VPS',
+  disk: 50,
+  ram: 2048,
+  bandwidth: 1000,
+  cpu: 2,
+  virt: 'kvm',
+});
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('Plan created successfully');
+}
+```
+
+---
+
+### delete()
+
+Delete a resource plan.
+
+```typescript
+delete(planId: string): Promise<AsyncTaskResult>
+```
+
+<ParamField path="planId" type="string" required>
+  The plan ID to delete
+</ParamField>
+
+<ResponseField name="result" type="AsyncTaskResult">
+  Task result (see create() for property documentation)
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await client.plans.delete('5');
+
+if (result.taskid) {
+  await client.tasks.wait(result.taskid);
+  console.log('Plan deleted successfully');
+}
+```
+
+<Warning>
+  You cannot delete a plan that is currently assigned to active VPS instances.
+</Warning>
+
+---
+
+## Common Workflows
+
+### Create Tiered Plans
+
+```typescript
+// Create a basic plan
+await client.plans.create({
+  plan_name: 'Basic',
+  disk: 25,
+  ram: 1024,
+  bandwidth: 500,
+  cpu: 1,
+  virt: 'kvm',
+});
+
+// Create a standard plan
+await client.plans.create({
+  plan_name: 'Standard',
+  disk: 50,
+  ram: 2048,
+  bandwidth: 1000,
+  cpu: 2,
+  virt: 'kvm',
+});
+
+// Create a premium plan
+await client.plans.create({
+  plan_name: 'Premium',
+  disk: 100,
+  ram: 4096,
+  bandwidth: 2000,
+  cpu: 4,
+  virt: 'kvm',
+});
+
+console.log('Tiered plans created successfully');
+```
+
+### Find Plan by Name and Use for VPS Creation
+
+```typescript
+// Get all plans
+const plans = await client.plans.list();
+
+// Find the plan we want
+const standardPlan = Object.entries(plans).find(
+  ([_, plan]) => plan.plan_name === 'Standard'
+);
+
+if (standardPlan) {
+  const [planId, plan] = standardPlan;
+  
+  // Create a VPS using this plan
+  const result = await client.vps.create({
+    hostname: 'web-server.example.com',
+    rootpass: 'SecureP@ssw0rd!',
+    osid: 123,
+    plid: parseInt(planId),
+  });
+  
+  if (result.taskid) {
+    await client.tasks.wait(result.taskid);
+    console.log('VPS created with Standard plan');
+  }
+}
+```
+
+### Display Plan Information to Users
+
+```typescript
+const plans = await client.plans.list();
+
+// Sort plans by price (assuming disk size correlates with price)
+const sortedPlans = Object.entries(plans)
+  .sort(([, a], [, b]) => parseInt(a.disk) - parseInt(b.disk));
+
+console.log('Available Plans:');
+console.log('================');
+
+for (const [pid, plan] of sortedPlans) {
+  console.log(`\n${plan.plan_name} (ID: ${pid})`);
+  console.log('-'.repeat(40));
+  console.log(`  Storage:    ${plan.disk} GB SSD`);
+  console.log(`  Memory:     ${plan.ram} MB RAM`);
+  console.log(`  Transfer:   ${plan.bandwidth} GB/month`);
+  console.log(`  CPU:        ${plan.cpu} cores`);
+  console.log(`  Type:       ${plan.virt || 'Any'}`);
+}
+```
+
+---
+
+## Type Definitions
+
+### Plan
+
+```typescript
+interface Plan {
+  pid: string;
+  plan_name: string;
+  disk: string;
+  ram: string;
+  bandwidth: string;
+  cpu: string;
+  virt?: string;
+}
+```
+
+### CreatePlanParams
+
+```typescript
+interface CreatePlanParams {
+  plan_name: string;
+  disk: number;
+  ram: number;
+  bandwidth: number;
+  cpu: number;
+  virt?: string;
+  [key: string]: unknown;
+}
+```
+
+### AsyncTaskResult
+
+Returned by all asynchronous operations:
+
+```typescript
+interface AsyncTaskResult {
+  taskid?: string;  // Task ID for monitoring progress
+  done?: 1;         // Set to 1 if operation completed immediately
+}
+```
+
+See the [Tasks API](/api/tasks) for monitoring asynchronous operations.

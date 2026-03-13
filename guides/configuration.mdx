@@ -1,0 +1,265 @@
+---
+title: 'Configuration'
+description: 'Configure the VirtualizorJS SDK client with authentication, connection settings, and SSL handling'
+---
+
+## Overview
+
+The VirtualizorJS SDK is configured when you create a client instance using `createVirtualizorClient()`. This guide covers all configuration options, their default values, and common configuration patterns.
+
+## Basic Configuration
+
+At minimum, you need to provide your Virtualizor server hostname and API credentials:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+});
+```
+
+<Note>
+  API credentials are generated in your Virtualizor admin panel under **Configuration > API Credentials**.
+</Note>
+
+## Configuration Options
+
+All configuration options are defined in the `VirtualizorConfig` interface from `src/types/config.ts:1`.
+
+### Required Fields
+
+<ParamField path="host" type="string" required>
+  The hostname or IP address of your Virtualizor server.
+  
+  **Example:** `"virtualizor.example.com"` or `"192.168.1.100"`
+</ParamField>
+
+<ParamField path="apiKey" type="string" required>
+  Your Virtualizor API key. Generated from the admin panel.
+</ParamField>
+
+### Optional Fields
+
+<ParamField path="apiPass" type="string">
+  Your Virtualizor API password. While technically optional in the type definition, it's required for most API operations.
+  
+  **Default:** `undefined`
+</ParamField>
+
+<ParamField path="port" type="number">
+  The port number for the Virtualizor API server.
+  
+  **Default:** `4085` (from `src/config/defaults.ts:2`)
+  
+  <Tip>
+    Use `4085` for HTTPS connections and `4084` for HTTP connections.
+  </Tip>
+</ParamField>
+
+<ParamField path="https" type="boolean">
+  Whether to use HTTPS for API requests.
+  
+  **Default:** `true` (from `src/config/defaults.ts:3`)
+</ParamField>
+
+<ParamField path="rejectUnauthorized" type="boolean">
+  Whether to reject self-signed SSL certificates. When `false`, the SDK will accept self-signed certificates.
+  
+  **Default:** `false` (from `src/config/defaults.ts:4`)
+  
+  <Warning>
+    Most Virtualizor installations use self-signed SSL certificates. Keep this set to `false` unless you have a valid CA-signed certificate installed.
+  </Warning>
+</ParamField>
+
+<ParamField path="timeout" type="number">
+  Request timeout in milliseconds. Requests that exceed this duration will be aborted.
+  
+  **Default:** `30000` (30 seconds, from `src/config/defaults.ts:5`)
+</ParamField>
+
+<ParamField path="debug" type="boolean">
+  Enable debug logging. When enabled, the SDK will log raw API responses to the console for troubleshooting.
+  
+  **Default:** `false` (from `src/config/defaults.ts:6`)
+</ParamField>
+
+## Configuration Examples
+
+### Production Configuration
+
+For production environments with a valid SSL certificate:
+
+```typescript
+const client = createVirtualizorClient({
+  host: 'virt.production.com',
+  apiKey: process.env.VIRTUALIZOR_API_KEY!,
+  apiPass: process.env.VIRTUALIZOR_API_PASS!,
+  port: 4085,
+  https: true,
+  rejectUnauthorized: true, // Enforce valid SSL certificates
+  timeout: 60000, // 60 seconds for long-running operations
+  debug: false,
+});
+```
+
+### Development Configuration
+
+For development environments with self-signed certificates:
+
+```typescript
+const client = createVirtualizorClient({
+  host: 'dev-virtualizor.local',
+  apiKey: 'dev-api-key',
+  apiPass: 'dev-api-pass',
+  https: true,
+  rejectUnauthorized: false, // Accept self-signed certificates
+  debug: true, // Enable debug logging
+});
+```
+
+### HTTP Configuration
+
+For non-SSL connections (not recommended for production):
+
+```typescript
+const client = createVirtualizorClient({
+  host: '192.168.1.100',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+  port: 4084, // HTTP port
+  https: false,
+});
+```
+
+### Custom Timeout Configuration
+
+For operations that may take longer than 30 seconds:
+
+```typescript
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+  timeout: 120000, // 2 minutes for VPS creation operations
+});
+```
+
+## SSL Certificate Handling
+
+Virtualizor typically uses self-signed SSL certificates by default. The SDK handles this gracefully with the `rejectUnauthorized` option.
+
+### Understanding SSL Configuration
+
+The `rejectUnauthorized` option is implemented in `src/http.ts:62` and controls how Node.js's HTTPS agent validates SSL certificates:
+
+```typescript
+{
+  agent: new https.Agent({ 
+    rejectUnauthorized: this.config.rejectUnauthorized 
+  })
+}
+```
+
+<Accordion title="When to use rejectUnauthorized: true">
+  Set `rejectUnauthorized: true` when:
+  
+  - Your Virtualizor server has a valid CA-signed SSL certificate
+  - You're in a production environment with proper SSL infrastructure
+  - You need to enforce strict SSL validation for security compliance
+  
+  <Warning>
+    If you enable `rejectUnauthorized: true` with a self-signed certificate, all API requests will fail with SSL validation errors.
+  </Warning>
+</Accordion>
+
+<Accordion title="When to use rejectUnauthorized: false">
+  Set `rejectUnauthorized: false` when:
+  
+  - Your Virtualizor server uses a self-signed certificate (most common)
+  - You're in a development or testing environment
+  - You control the network and trust the server identity through other means
+  
+  This is the **default setting** and works with standard Virtualizor installations.
+</Accordion>
+
+### Handling SSL Errors
+
+If you encounter SSL-related errors, check your configuration:
+
+```typescript
+try {
+  const client = createVirtualizorClient({
+    host: 'virtualizor.example.com',
+    apiKey: 'your-api-key',
+    apiPass: 'your-api-pass',
+    rejectUnauthorized: true, // May cause issues with self-signed certs
+  });
+  
+  await client.vps.list();
+} catch (error) {
+  if (error instanceof Error && error.message.includes('certificate')) {
+    console.error('SSL certificate validation failed.');
+    console.error('Try setting rejectUnauthorized: false for self-signed certificates.');
+  }
+}
+```
+
+## Environment Variables
+
+For security, store sensitive credentials in environment variables:
+
+```typescript
+const client = createVirtualizorClient({
+  host: process.env.VIRTUALIZOR_HOST!,
+  apiKey: process.env.VIRTUALIZOR_API_KEY!,
+  apiPass: process.env.VIRTUALIZOR_API_PASS!,
+  port: process.env.VIRTUALIZOR_PORT ? parseInt(process.env.VIRTUALIZOR_PORT) : undefined,
+});
+```
+
+**.env file:**
+
+```bash
+VIRTUALIZOR_HOST=virtualizor.example.com
+VIRTUALIZOR_API_KEY=your-api-key
+VIRTUALIZOR_API_PASS=your-api-pass
+VIRTUALIZOR_PORT=4085
+```
+
+## Configuration Validation
+
+The SDK resolves your configuration with defaults internally. All optional fields are merged with `DEFAULT_CONFIG` from `src/config/defaults.ts:1` to create a `ResolvedConfig` (see `src/types/config.ts:12`).
+
+<Note>
+  You don't need to specify all fields. Any omitted optional fields will use their default values automatically.
+</Note>
+
+## Debugging Connection Issues
+
+If you're experiencing connection problems, enable debug mode:
+
+```typescript
+const client = createVirtualizorClient({
+  host: 'virtualizor.example.com',
+  apiKey: 'your-api-key',
+  apiPass: 'your-api-pass',
+  debug: true, // Enables raw response logging
+});
+```
+
+Debug mode logs the first 500 characters of raw API responses when JSON parsing fails (see `src/http.ts:88`), helping you identify authentication or connection issues.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn how to handle API errors and exceptions
+  </Card>
+  <Card title="Task Polling" icon="clock" href="/guides/task-polling">
+    Understand async operations and task polling
+  </Card>
+</CardGroup>

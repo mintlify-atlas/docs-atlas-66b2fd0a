@@ -1,0 +1,149 @@
+---
+title: Installation
+description: Install VirtualizorJS in your project using npm, yarn, pnpm, or bun
+---
+
+## Requirements
+
+Before installing VirtualizorJS, ensure you have:
+
+- **Node.js 16+** or **Bun 1.0+**
+- A Virtualizor server with API access enabled
+- API credentials (API key and password) from your Virtualizor admin panel
+
+<Note>
+  VirtualizorJS has **zero production dependencies** and uses only Node.js built-in modules. This keeps your bundle size minimal and eliminates dependency conflicts.
+</Note>
+
+## Package Managers
+
+Choose your preferred package manager to install VirtualizorJS:
+
+<CodeGroup>
+
+```bash npm
+npm install virtualizorjs
+```
+
+```bash yarn
+yarn add virtualizorjs
+```
+
+```bash pnpm
+pnpm add virtualizorjs
+```
+
+```bash bun
+bun add virtualizorjs
+```
+
+</CodeGroup>
+
+## Verify Installation
+
+After installation, verify that VirtualizorJS is available in your project:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+console.log('VirtualizorJS installed successfully!');
+```
+
+If you're using CommonJS instead of ES modules:
+
+```javascript
+const { createVirtualizorClient } = require('virtualizorjs');
+
+console.log('VirtualizorJS installed successfully!');
+```
+
+## TypeScript Support
+
+VirtualizorJS is written in TypeScript and includes type definitions out of the box. No additional `@types` packages are needed.
+
+To use types in your project, simply import them:
+
+```typescript
+import type {
+  VPS,
+  CreateVPSParams,
+  RebuildVPSParams,
+  CloneVPSParams,
+  MigrateVPSParams,
+  User,
+  CreateUserParams,
+  Plan,
+  CreatePlanParams,
+  Task,
+  AsyncTaskResult,
+  VirtualizorConfig,
+} from 'virtualizorjs';
+```
+
+<Tip>
+  Your IDE will provide autocomplete suggestions for all API methods, parameters, and response types. Take advantage of this to explore the SDK without constantly checking documentation.
+</Tip>
+
+## Getting API Credentials
+
+To use VirtualizorJS, you'll need API credentials from your Virtualizor installation:
+
+<Steps>
+  <Step title="Log in to Virtualizor Admin Panel">
+    Access your Virtualizor admin panel, typically at `https://your-server.com:4085/`
+  </Step>
+  
+  <Step title="Navigate to API Settings">
+    Go to **Configuration** → **API Credentials** in the admin menu
+  </Step>
+  
+  <Step title="Generate or Retrieve Credentials">
+    Create a new API key or use an existing one. You'll need both the **API Key** and **API Password**.
+  </Step>
+  
+  <Step title="Note the Connection Details">
+    Record your server hostname, port (typically 4085 for HTTPS or 4084 for HTTP), and whether you're using HTTPS.
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your API credentials secure. Never commit them to version control or expose them in client-side code. Use environment variables or a secure secrets manager.
+</Warning>
+
+## Environment Variables
+
+For security, store your credentials in environment variables:
+
+```bash .env
+VIRTUALIZOR_HOST=virtualizor.example.com
+VIRTUALIZOR_API_KEY=your-api-key
+VIRTUALIZOR_API_PASS=your-api-pass
+VIRTUALIZOR_PORT=4085
+VIRTUALIZOR_HTTPS=true
+```
+
+Then create your client using these variables:
+
+```typescript
+import { createVirtualizorClient } from 'virtualizorjs';
+
+const client = createVirtualizorClient({
+  host: process.env.VIRTUALIZOR_HOST!,
+  apiKey: process.env.VIRTUALIZOR_API_KEY!,
+  apiPass: process.env.VIRTUALIZOR_API_PASS!,
+  port: parseInt(process.env.VIRTUALIZOR_PORT || '4085'),
+  https: process.env.VIRTUALIZOR_HTTPS === 'true',
+});
+```
+
+## Next Steps
+
+Now that you've installed VirtualizorJS, proceed to the quickstart guide to create your first client and perform basic VPS operations:
+
+<Card
+  title="Quickstart Guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Learn how to create a client and manage VPS instances
+</Card>

@@ -1,0 +1,959 @@
+---
+title: Types
+description: TypeScript type definitions for VirtualizorJS
+---
+
+This page documents all TypeScript types exported by VirtualizorJS. All types are fully typed and exported from the main package entry point.
+
+## Configuration Types
+
+### VirtualizorConfig
+
+Configuration object for initializing the Virtualizor client.
+
+```typescript
+interface VirtualizorConfig {
+  host: string;
+  apiKey: string;
+  apiPass?: string;
+  port?: number;
+  https?: boolean;
+  rejectUnauthorized?: boolean;
+  timeout?: number;
+  debug?: boolean;
+}
+```
+
+<ResponseField name="host" type="string" required>
+  Virtualizor server hostname or IP address (without protocol or port)
+</ResponseField>
+
+<ResponseField name="apiKey" type="string" required>
+  API key for authentication
+</ResponseField>
+
+<ResponseField name="apiPass" type="string">
+  API password for authentication (defaults to empty string if not provided)
+</ResponseField>
+
+<ResponseField name="port" type="number">
+  Server port (defaults to 4085 for HTTPS, 4084 for HTTP)
+</ResponseField>
+
+<ResponseField name="https" type="boolean">
+  Use HTTPS for connections (defaults to true)
+</ResponseField>
+
+<ResponseField name="rejectUnauthorized" type="boolean">
+  Reject self-signed SSL certificates (defaults to true)
+</ResponseField>
+
+<ResponseField name="timeout" type="number">
+  Request timeout in milliseconds (defaults to 30000)
+</ResponseField>
+
+<ResponseField name="debug" type="boolean">
+  Enable debug logging (defaults to false)
+</ResponseField>
+
+---
+
+## VPS Types
+
+### VPS
+
+Represents a Virtual Private Server with all its properties and metadata.
+
+<Accordion title="VPS Interface (click to expand)">
+```typescript
+interface VPS {
+  vpsid: string;
+  vps_name?: string;
+  uuid?: string;
+  serid?: string | number;
+  time?: string | number;
+  edittime?: string | number;
+  virt?: VirtType | string;
+  uid?: string | number;
+  plid?: string | number;
+  hostname: string;
+  osid?: string | number;
+  os_name: string;
+  iso?: string;
+  sec_iso?: string;
+  boot?: string;
+  space?: string | number;
+  inodes?: string | number;
+  ram: string;
+  burst?: string | number;
+  swap?: string | number;
+  cpu?: string | number;
+  cores?: string | number;
+  cpupin?: string | number;
+  cpu_percent?: string | number;
+  bandwidth: string;
+  network_speed?: string | number;
+  upload_speed?: string | number;
+  io?: string | number;
+  ubc?: string;
+  acpi?: string | number;
+  apic?: string | number;
+  pae?: string | number;
+  shadow?: string | number;
+  vnc?: string | number;
+  vncport?: string | number;
+  vnc_passwd?: string;
+  hvm?: string | number;
+  suspended?: string | number;
+  suspend_reason?: string | null;
+  nw_suspended?: string | null;
+  rescue?: string | number;
+  band_suspend?: string | number;
+  tuntap?: string | number;
+  ppp?: string | number;
+  ploop?: string | number;
+  dns_nameserver?: string;
+  osreinstall_limit?: string | number;
+  preferences?: unknown | null;
+  nic_type?: string;
+  vif_type?: string;
+  virtio?: string | number;
+  pv_on_hvm?: string | number;
+  disks?: unknown | null;
+  kvm_cache?: string | number;
+  io_mode?: string | number;
+  cpu_mode?: string;
+  total_iops_sec?: string | number;
+  read_bytes_sec?: string | number;
+  write_bytes_sec?: string | number;
+  kvm_vga?: string | number;
+  acceleration?: string | number;
+  vnc_keymap?: string;
+  routing?: string | number;
+  mg?: string;
+  used_bandwidth?: string | number;
+  cached_disk?: unknown;
+  webuzo?: string | number;
+  disable_ebtables?: string | number;
+  install_xentools?: string | number;
+  admin_managed?: string | number;
+  rdp?: string | number;
+  topology_sockets?: string | number;
+  topology_cores?: string | number;
+  topology_threads?: string | number;
+  mac?: string;
+  notes?: string | null;
+  disable_nw_config?: string | number;
+  locked?: string;
+  openvz_features?: string;
+  speed_cap?: string;
+  numa?: string | number;
+  bpid?: string | number;
+  bserid?: string | number;
+  timezone?: string | null;
+  ha?: string | number;
+  load_balancer?: string | number;
+  data?: VPSData;
+  fwid?: string | number;
+  admin_fwid?: string | number;
+  current_resource?: unknown | null;
+  plan_expiry?: string | number;
+  machine_status?: string | number;
+  tags?: string | null;
+  server_name?: string;
+  email?: string;
+  pid?: string | number;
+  type?: string | number;
+  os_distro?: string;
+  stid?: number[];
+  ips?: Record<string, string>;
+}
+```
+
+#### Key Fields
+
+<ResponseField name="vpsid" type="string" required>
+  Unique VPS identifier
+</ResponseField>
+
+<ResponseField name="hostname" type="string" required>
+  VPS hostname
+</ResponseField>
+
+<ResponseField name="os_name" type="string" required>
+  Operating system name
+</ResponseField>
+
+<ResponseField name="ram" type="string" required>
+  Allocated RAM in MB
+</ResponseField>
+
+<ResponseField name="bandwidth" type="string" required>
+  Monthly bandwidth allocation in GB
+</ResponseField>
+
+<ResponseField name="virt" type="VirtType | string">
+  Virtualization type (kvm, xen, openvz, lxc, proxmox, virtuozzo, xcp, hyperv)
+</ResponseField>
+
+<ResponseField name="suspended" type="string | number">
+  Suspension status (0 = active, 1 = suspended)
+</ResponseField>
+
+<ResponseField name="ips" type="Record<string, string>">
+  IP addresses assigned to the VPS (key-value pairs)
+</ResponseField>
+
+</Accordion>
+
+### CreateVPSParams
+
+Parameters for creating a new VPS.
+
+```typescript
+interface CreateVPSParams {
+  hostname: string;
+  rootpass: string;
+  osid: number;
+  plid?: number;
+  user_email?: string;
+  ips?: number;
+  ips_int?: number;
+  space?: number;
+  ram?: number;
+  burst?: number;
+  bandwidth?: number;
+  cpu?: number;
+  cpu_percent?: number;
+  virt?: VirtType;
+  serid?: number;
+  node_select?: 0 | 1;
+  recipe?: number;
+  sshkey?: string;
+  nopassword?: 0 | 1;
+  [key: string]: unknown;
+}
+```
+
+<ResponseField name="hostname" type="string" required>
+  Hostname for the new VPS
+</ResponseField>
+
+<ResponseField name="rootpass" type="string" required>
+  Root password for the VPS
+</ResponseField>
+
+<ResponseField name="osid" type="number" required>
+  Operating system template ID
+</ResponseField>
+
+<ResponseField name="plid" type="number">
+  Plan ID to use for the VPS
+</ResponseField>
+
+<ResponseField name="user_email" type="string">
+  Email address for the VPS owner
+</ResponseField>
+
+<ResponseField name="ips" type="number">
+  Number of IPv4 addresses to assign
+</ResponseField>
+
+<ResponseField name="ips_int" type="number">
+  Number of internal IP addresses
+</ResponseField>
+
+<ResponseField name="space" type="number">
+  Disk space in GB
+</ResponseField>
+
+<ResponseField name="ram" type="number">
+  RAM in MB
+</ResponseField>
+
+<ResponseField name="burst" type="number">
+  Burst RAM in MB
+</ResponseField>
+
+<ResponseField name="bandwidth" type="number">
+  Monthly bandwidth in GB
+</ResponseField>
+
+<ResponseField name="cpu" type="number">
+  Number of CPU cores
+</ResponseField>
+
+<ResponseField name="cpu_percent" type="number">
+  CPU usage percentage limit
+</ResponseField>
+
+<ResponseField name="virt" type="VirtType">
+  Virtualization technology to use
+</ResponseField>
+
+<ResponseField name="serid" type="number">
+  Server ID to create the VPS on
+</ResponseField>
+
+<ResponseField name="node_select" type="0 | 1">
+  Allow automatic node selection (0 = no, 1 = yes)
+</ResponseField>
+
+<ResponseField name="recipe" type="number">
+  Recipe ID to execute after creation
+</ResponseField>
+
+<ResponseField name="sshkey" type="string">
+  SSH public key to inject
+</ResponseField>
+
+<ResponseField name="nopassword" type="0 | 1">
+  Disable password authentication (0 = no, 1 = yes)
+</ResponseField>
+
+### ListVPSParams
+
+Parameters for filtering VPS list queries.
+
+```typescript
+interface ListVPSParams {
+  user?: string | number;
+  vpsid?: string | number;
+  vpsname?: string;
+  vpsip?: string;
+  vpshostname?: string;
+  vsstatus?: string;
+  vstype?: VirtType;
+  serid?: number;
+  plid?: number;
+  bpid?: number;
+  [key: string]: unknown;
+}
+```
+
+<ResponseField name="user" type="string | number">
+  Filter by user ID or email
+</ResponseField>
+
+<ResponseField name="vpsid" type="string | number">
+  Filter by specific VPS ID
+</ResponseField>
+
+<ResponseField name="vpsname" type="string">
+  Filter by VPS name
+</ResponseField>
+
+<ResponseField name="vpsip" type="string">
+  Filter by IP address
+</ResponseField>
+
+<ResponseField name="vpshostname" type="string">
+  Filter by hostname
+</ResponseField>
+
+<ResponseField name="vsstatus" type="string">
+  Filter by status
+</ResponseField>
+
+<ResponseField name="vstype" type="VirtType">
+  Filter by virtualization type
+</ResponseField>
+
+<ResponseField name="serid" type="number">
+  Filter by server ID
+</ResponseField>
+
+<ResponseField name="plid" type="number">
+  Filter by plan ID
+</ResponseField>
+
+<ResponseField name="bpid" type="number">
+  Filter by billing plan ID
+</ResponseField>
+
+### RebuildVPSParams
+
+Parameters for rebuilding a VPS with a new OS template.
+
+```typescript
+interface RebuildVPSParams {
+  /** OS template ID to rebuild with */
+  osid: number;
+  /** New root password for the VPS */
+  newpass: string;
+  /** Must be set to 1 to confirm the rebuild */
+  conf: 1;
+  /** Format primary disk (0 = no, 1 = yes); defaults to 0 */
+  format_primary?: 0 | 1;
+  /** Send rebuild notification email (0 = no, 1 = yes) */
+  eu_send_rebuild_email?: 0 | 1;
+  /** Recipe ID to apply post-rebuild */
+  recipe?: number;
+  /** SSH key to inject */
+  sshkey?: string;
+}
+```
+
+<ResponseField name="osid" type="number" required>
+  OS template ID to rebuild with
+</ResponseField>
+
+<ResponseField name="newpass" type="string" required>
+  New root password for the VPS
+</ResponseField>
+
+<ResponseField name="conf" type="1" required>
+  Must be set to 1 to confirm the rebuild operation
+</ResponseField>
+
+<ResponseField name="format_primary" type="0 | 1">
+  Format the primary disk (0 = no, 1 = yes); defaults to 0
+</ResponseField>
+
+<ResponseField name="eu_send_rebuild_email" type="0 | 1">
+  Send rebuild notification email (0 = no, 1 = yes)
+</ResponseField>
+
+<ResponseField name="recipe" type="number">
+  Recipe ID to apply after rebuild
+</ResponseField>
+
+<ResponseField name="sshkey" type="string">
+  SSH public key to inject into the rebuilt VPS
+</ResponseField>
+
+### CloneVPSParams
+
+Parameters for cloning a VPS to another server.
+
+```typescript
+interface CloneVPSParams {
+  /** Hostname for the new cloned VPS */
+  hostname: string;
+  /** Root password for the new cloned VPS */
+  rootpass: string;
+  /** Source server ID (server where the VPS lives) */
+  from_server: number;
+  /** Destination server ID (server to clone into) */
+  to_server: number;
+}
+```
+
+<ResponseField name="hostname" type="string" required>
+  Hostname for the new cloned VPS
+</ResponseField>
+
+<ResponseField name="rootpass" type="string" required>
+  Root password for the new cloned VPS
+</ResponseField>
+
+<ResponseField name="from_server" type="number" required>
+  Source server ID (server where the VPS currently exists)
+</ResponseField>
+
+<ResponseField name="to_server" type="number" required>
+  Destination server ID (server to clone the VPS to)
+</ResponseField>
+
+### MigrateVPSParams
+
+Parameters for migrating a VPS between servers.
+
+```typescript
+interface MigrateVPSParams {
+  /** Destination server ID */
+  serid: number;
+  /** Source server IP address */
+  from_ip: string;
+  /** Source server API/root password */
+  from_pass: string;
+  /** 0 = ignore VDF conflicts, 1 = error on conflict */
+  ignore_if_vdfconflict?: 0 | 1;
+  /** 0 = use gzip compression, 1 = disable gzip */
+  disable_gzip?: 0 | 1;
+  /** 0 = offline migration, 1 = live migration */
+  online?: 0 | 1;
+}
+```
+
+<ResponseField name="serid" type="number" required>
+  Destination server ID
+</ResponseField>
+
+<ResponseField name="from_ip" type="string" required>
+  Source server IP address
+</ResponseField>
+
+<ResponseField name="from_pass" type="string" required>
+  Source server API/root password
+</ResponseField>
+
+<ResponseField name="ignore_if_vdfconflict" type="0 | 1">
+  Handle VDF conflicts (0 = ignore conflicts, 1 = error on conflict)
+</ResponseField>
+
+<ResponseField name="disable_gzip" type="0 | 1">
+  Compression setting (0 = use gzip, 1 = disable gzip)
+</ResponseField>
+
+<ResponseField name="online" type="0 | 1">
+  Migration type (0 = offline migration, 1 = live migration)
+</ResponseField>
+
+### VPSData
+
+Extended VPS configuration data and advanced settings.
+
+<Accordion title="VPSData Interface (click to expand)">
+```typescript
+interface VPSData {
+  os_type?: number | string;
+  rtc?: number | string;
+  unprivileged?: number | string;
+  vnc_auto_port?: number | string;
+  nested_virt?: number | string;
+  vga_vram?: number | string;
+  discard?: number | string;
+  vlan_tag?: number | string;
+  enable_guest_agent?: number | string;
+  ssd_emulation?: number | string;
+  machine_type?: number | string;
+  bios?: string;
+  enable_tpm?: number | string;
+  disable_password?: string;
+  ssh_options?: string;
+  added_keys?: unknown[];
+  io_uring?: number | string;
+  min_ram?: number | string;
+  vga?: number | string;
+  vga_memory?: number | string;
+  cpu_flags?: number | string;
+  scsi_controller?: number | string;
+  demo?: string | null;
+  enable_cpu_threshold?: number | string;
+  cpu_threshold?: number | string;
+  cpu_threshold_time?: number | string;
+  disable_guest_agent?: number | string;
+  disable_autostart?: number | string;
+  iothread?: number | string;
+  nesting?: number | string;
+  suspended_time?: number | string;
+  multiqueue?: number | string;
+  freeze_fs_on_backup?: number | string;
+  enable_ver_scaling?: number | string;
+  ver_max_ram?: string | number;
+  ver_ram_threshold?: string | number;
+  ver_ram_inc_by?: string | number;
+  ver_max_cpu?: string | number;
+  ver_cpu_threshold?: string | number;
+  ver_cpu_inc_by?: string | number;
+  random_ipv6?: number | string;
+  encrypted_pass?: number | string;
+  vm_admin_name?: string;
+  crypted_pass?: string | null;
+  crypted_salt?: string | null;
+  custom_ipv6_on_edit?: number | string;
+  docker_info?: unknown | null;
+}
+```
+
+This interface contains advanced VPS configuration options for virtualization features, resource scaling, security settings, and hardware emulation.
+</Accordion>
+
+---
+
+## User Types
+
+### User
+
+Represents a Virtualizor user account.
+
+```typescript
+interface User {
+  uid: string;
+  email: string;
+  fname?: string;
+  lname?: string;
+  status: string;
+  type: string;
+}
+```
+
+<ResponseField name="uid" type="string" required>
+  Unique user identifier
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address
+</ResponseField>
+
+<ResponseField name="fname" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lname" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Account status
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  User account type
+</ResponseField>
+
+### CreateUserParams
+
+Parameters for creating a new user account.
+
+```typescript
+interface CreateUserParams {
+  email: string;
+  password: string;
+  fname?: string;
+  lname?: string;
+  acttype?: number;
+  [key: string]: unknown;
+}
+```
+
+<ResponseField name="email" type="string" required>
+  User's email address
+</ResponseField>
+
+<ResponseField name="password" type="string" required>
+  User's password
+</ResponseField>
+
+<ResponseField name="fname" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lname" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="acttype" type="number">
+  Account type identifier
+</ResponseField>
+
+---
+
+## Plan Types
+
+### Plan
+
+Represents a VPS resource plan.
+
+```typescript
+interface Plan {
+  pid: string;
+  plan_name: string;
+  disk: string;
+  ram: string;
+  bandwidth: string;
+  cpu: string;
+  virt?: string;
+}
+```
+
+<ResponseField name="pid" type="string" required>
+  Unique plan identifier
+</ResponseField>
+
+<ResponseField name="plan_name" type="string" required>
+  Plan name
+</ResponseField>
+
+<ResponseField name="disk" type="string" required>
+  Disk space allocation
+</ResponseField>
+
+<ResponseField name="ram" type="string" required>
+  RAM allocation
+</ResponseField>
+
+<ResponseField name="bandwidth" type="string" required>
+  Bandwidth allocation
+</ResponseField>
+
+<ResponseField name="cpu" type="string" required>
+  CPU allocation
+</ResponseField>
+
+<ResponseField name="virt" type="string">
+  Virtualization type for the plan
+</ResponseField>
+
+### CreatePlanParams
+
+Parameters for creating a new plan.
+
+```typescript
+interface CreatePlanParams {
+  plan_name: string;
+  disk: number;
+  ram: number;
+  bandwidth: number;
+  cpu: number;
+  virt?: string;
+  [key: string]: unknown;
+}
+```
+
+<ResponseField name="plan_name" type="string" required>
+  Name for the new plan
+</ResponseField>
+
+<ResponseField name="disk" type="number" required>
+  Disk space in GB
+</ResponseField>
+
+<ResponseField name="ram" type="number" required>
+  RAM in MB
+</ResponseField>
+
+<ResponseField name="bandwidth" type="number" required>
+  Monthly bandwidth in GB
+</ResponseField>
+
+<ResponseField name="cpu" type="number" required>
+  Number of CPU cores
+</ResponseField>
+
+<ResponseField name="virt" type="string">
+  Virtualization type (kvm, xen, etc.)
+</ResponseField>
+
+---
+
+## Task Types
+
+### Task
+
+Represents an asynchronous task in Virtualizor.
+
+```typescript
+interface Task {
+  id: string;
+  action: string;
+  status: string;
+  vpsid?: string;
+  data?: unknown;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Unique task identifier
+</ResponseField>
+
+<ResponseField name="action" type="string" required>
+  Task action type (e.g., 'create', 'rebuild', 'migrate')
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Current task status
+</ResponseField>
+
+<ResponseField name="vpsid" type="string">
+  VPS ID associated with the task
+</ResponseField>
+
+<ResponseField name="data" type="unknown">
+  Additional task data
+</ResponseField>
+
+---
+
+## Common Types
+
+### AsyncTaskResult
+
+Response type for operations that trigger asynchronous tasks.
+
+```typescript
+interface AsyncTaskResult extends VirtualizorResponse {
+  done?: 1;
+  taskid?: string;
+}
+```
+
+<ResponseField name="done" type="1">
+  Present when the task is complete (value is always 1)
+</ResponseField>
+
+<ResponseField name="taskid" type="string">
+  Task ID for tracking the asynchronous operation
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Response title (inherited from VirtualizorResponse)
+</ResponseField>
+
+<ResponseField name="timenow" type="number">
+  Server timestamp (inherited from VirtualizorResponse)
+</ResponseField>
+
+<ResponseField name="time_taken" type="string">
+  Request processing time (inherited from VirtualizorResponse)
+</ResponseField>
+
+<ResponseField name="error" type="VirtualizorError[]">
+  Array of errors if any occurred (inherited from VirtualizorResponse)
+</ResponseField>
+
+### VirtType
+
+Union type representing supported virtualization technologies.
+
+```typescript
+type VirtType =
+  | 'kvm'
+  | 'xen'
+  | 'openvz'
+  | 'lxc'
+  | 'proxmox'
+  | 'virtuozzo'
+  | 'xcp'
+  | 'hyperv';
+```
+
+Supported virtualization types:
+- `kvm` - Kernel-based Virtual Machine
+- `xen` - Xen hypervisor
+- `openvz` - OpenVZ containers
+- `lxc` - Linux Containers
+- `proxmox` - Proxmox VE
+- `virtuozzo` - Virtuozzo containers
+- `xcp` - XenServer/XCP-ng
+- `hyperv` - Microsoft Hyper-V
+
+### VirtualizorResponse
+
+Base response type for all Virtualizor API responses.
+
+```typescript
+interface VirtualizorResponse {
+  title?: string;
+  timenow?: number;
+  time_taken?: string;
+  error?: VirtualizorError[];
+}
+```
+
+<ResponseField name="title" type="string">
+  Response title
+</ResponseField>
+
+<ResponseField name="timenow" type="number">
+  Current server timestamp
+</ResponseField>
+
+<ResponseField name="time_taken" type="string">
+  Time taken to process the request
+</ResponseField>
+
+<ResponseField name="error" type="VirtualizorError[]">
+  Array of error objects if the request failed
+</ResponseField>
+
+### VirtualizorError
+
+Error object structure returned by the Virtualizor API.
+
+```typescript
+interface VirtualizorError {
+  code: number;
+  msg: string;
+}
+```
+
+<ResponseField name="code" type="number" required>
+  Error code
+</ResponseField>
+
+<ResponseField name="msg" type="string" required>
+  Error message
+</ResponseField>
+
+---
+
+## Error Types
+
+### VirtualizorApiError
+
+Custom error class thrown when API requests fail.
+
+```typescript
+class VirtualizorApiError extends Error {
+  readonly code: number;
+  
+  constructor(message: string, code: number);
+}
+```
+
+<ResponseField name="message" type="string" required>
+  Error message from the API
+</ResponseField>
+
+<ResponseField name="code" type="number" required>
+  Virtualizor error code
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Always set to 'VirtualizorApiError'
+</ResponseField>
+
+This error is thrown automatically by the SDK when the Virtualizor API returns an error response. You can catch it to handle API errors specifically:
+
+```typescript
+import { VirtualizorApiError } from 'virtualizorjs';
+
+try {
+  await client.vps.create({ /* ... */ });
+} catch (error) {
+  if (error instanceof VirtualizorApiError) {
+    console.error(`API Error ${error.code}: ${error.message}`);
+  }
+}
+```
+
+---
+
+## Type Imports
+
+All types are exported from the main package entry point:
+
+```typescript
+import type {
+  // Configuration
+  VirtualizorConfig,
+  
+  // VPS
+  VPS,
+  CreateVPSParams,
+  ListVPSParams,
+  RebuildVPSParams,
+  CloneVPSParams,
+  MigrateVPSParams,
+  
+  // Users
+  User,
+  CreateUserParams,
+  
+  // Plans
+  Plan,
+  CreatePlanParams,
+  
+  // Tasks
+  Task,
+  AsyncTaskResult,
+  
+  // Common
+  VirtType,
+} from 'virtualizorjs';
+
+// Error class (not a type)
+import { VirtualizorApiError } from 'virtualizorjs';
+```
