@@ -1,0 +1,105 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "VirtualizorJS",
+  "projectDescription": "TypeScript SDK for the Virtualizor server management API with type-safe, developer-friendly client for managing VPS instances.",
+  "theme": "palm",
+  "primaryColor": "#848c8e",
+  "lightColor": "#11161e",
+  "darkColor": "#cfd0d2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/error-handling",
+              "guides/task-polling"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/list-vps",
+              "examples/create-vps",
+              "examples/manage-vps"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Client",
+            "pages": [
+              "api/client"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "api/vps",
+              "api/users",
+              "api/plans",
+              "api/tasks"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "TypeScript-first SDK with full type safety",
+    "Zero production dependencies",
+    "Async task polling support",
+    "Namespaced resource API (vps, users, plans, tasks)",
+    "Comprehensive VPS lifecycle management",
+    "Self-signed SSL certificate handling"
+  ],
+  "publicApiSurface": [
+    "createVirtualizorClient(config)",
+    "VirtualizorClient",
+    "client.vps.list()",
+    "client.vps.get(vpsId)",
+    "client.vps.create(params)",
+    "client.vps.start(vpsId)",
+    "client.vps.stop(vpsId)",
+    "client.vps.restart(vpsId)",
+    "client.vps.delete(vpsId)",
+    "client.vps.rebuild(vpsId, params)",
+    "client.vps.clone(vpsId, params)",
+    "client.vps.migrate(vpsId, params)",
+    "client.vps.suspend(vpsId)",
+    "client.vps.unsuspend(vpsId)",
+    "client.vps.vnc(vpsId)",
+    "client.vps.stats(vpsId)",
+    "client.users.list()",
+    "client.users.create(params)",
+    "client.users.delete(uid)",
+    "client.users.suspend(uid)",
+    "client.users.unsuspend(uid)",
+    "client.plans.list()",
+    "client.plans.create(params)",
+    "client.plans.delete(planId)",
+    "client.tasks.get(taskId)",
+    "client.tasks.wait(taskId, options)",
+    "VirtualizorApiError"
+  ]
+}
